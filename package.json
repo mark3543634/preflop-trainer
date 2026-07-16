@@ -17,7 +17,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "export:web": "expo export --platform web",
-    "check": "npm run typecheck && npm run lint && npm run test:ci"
+    "verify:release": "node scripts/verify_public_release.mjs",
+    "check": "npm run typecheck && npm run lint && npm run test:ci && npm run verify:release"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",

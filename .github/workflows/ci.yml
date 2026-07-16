@@ -18,6 +18,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test:ci
+      - run: npm run verify:release
       - run: npx expo-doctor
       - run: npm run export:web
       - name: Запрещённые локальные данные не попали в bundle
