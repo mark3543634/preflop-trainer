@@ -65,3 +65,31 @@ export function sortLeaks(stats: NodeStat[]): NodeStat[] {
     return accuracy(a) - accuracy(b);
   });
 }
+
+/** Merge historical observations for one logical node across internal packs. */
+export function mergeStatsByNodeId(
+  stats: NodeStat[],
+  preferredProvider: (nodeId: string) => ProviderId | undefined,
+): NodeStat[] {
+  const merged = new Map<string, NodeStat>();
+  for (const stat of stats) {
+    const current = merged.get(stat.nodeId);
+    if (!current) {
+      merged.set(stat.nodeId, {
+        ...stat,
+        providerId: preferredProvider(stat.nodeId) ?? stat.providerId,
+      });
+      continue;
+    }
+    merged.set(stat.nodeId, {
+      providerId: preferredProvider(stat.nodeId) ?? current.providerId,
+      nodeId: stat.nodeId,
+      hands: current.hands + stat.hands,
+      sumScore: current.sumScore + stat.sumScore,
+      sumEvLoss: current.sumEvLoss + stat.sumEvLoss,
+      evHands: current.evHands + stat.evHands,
+      mistakes: current.mistakes + stat.mistakes,
+    });
+  }
+  return [...merged.values()];
+}

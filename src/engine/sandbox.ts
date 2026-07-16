@@ -7,7 +7,7 @@
 // can never look playable or be silently skipped from a position mix.
 // =============================================================================
 import { legalScenarios, isLegalScenario } from './scenarios';
-import type { GameFormat, Position, RangeNode, ScenarioType } from '../types';
+import { POSITIONS, type GameFormat, type Position, type RangeNode, type ScenarioType } from '../types';
 
 export interface SandboxScope {
   format: GameFormat;
@@ -28,6 +28,13 @@ export interface ScenarioAvailability {
   availableNodeCount: number;
   legalNodeCount: number;
   available: boolean;
+}
+
+/** A legal spot that has no RangeNode in the selected pack/table. */
+export interface MissingSandboxSpot {
+  hero: Position;
+  scenario: ScenarioType;
+  villainPosition?: Position;
 }
 
 function uniqueNodes(nodes: RangeNode[]): RangeNode[] {
@@ -122,4 +129,46 @@ export function sandboxCoverage(
     0,
   );
   return { available: sandboxNodesInScope(nodes, scope).length, legal };
+}
+
+/**
+ * Enumerate every legal-but-missing node for a format and stack. This is the
+ * canonical coverage audit used by tests and import tooling; it never infers
+ * or fabricates strategy for a missing spot.
+ */
+export function missingSandboxSpots(
+  nodes: RangeNode[],
+  format: GameFormat,
+  stackBB: number,
+): MissingSandboxSpot[] {
+  const missing: MissingSandboxSpot[] = [];
+
+  for (const hero of POSITIONS) {
+    for (const legal of legalScenarios(hero)) {
+      const villainPositions: (Position | undefined)[] = legal.villainPositions.length
+        ? legal.villainPositions
+        : [undefined];
+
+      for (const villainPosition of villainPositions) {
+        const exists = nodes.some(
+          (node) =>
+            node.format === format &&
+            node.stackBB === stackBB &&
+            node.hero === hero &&
+            node.scenario === legal.scenario &&
+            node.villainPosition === villainPosition,
+        );
+
+        if (!exists) {
+          missing.push({
+            hero,
+            scenario: legal.scenario,
+            ...(villainPosition === undefined ? {} : { villainPosition }),
+          });
+        }
+      }
+    }
+  }
+
+  return missing;
 }

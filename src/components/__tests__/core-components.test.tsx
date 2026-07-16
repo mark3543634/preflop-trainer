@@ -30,6 +30,9 @@ describe('основные компоненты MVP', () => {
   it('рендерит песочницу и помечает недоступные глубины', () => {
     const view = render(<TrainScreen />);
     expect(view.getByText('Соберите свой спот')).toBeTruthy();
+    expect(view.getByText('Основной набор диапазонов')).toBeTruthy();
+    expect(view.queryByText(/Pekarstas/i)).toBeNull();
+    expect(view.queryByText(/Greenline/i)).toBeNull();
     expect(view.getByText('40 BB · скоро')).toBeTruthy();
     expect(view.getByText('MTT · нет данных')).toBeTruthy();
     expect(view.getByRole('button', { name: 'Начать' }).props.accessibilityState.disabled).toBe(
@@ -76,6 +79,23 @@ describe('основные компоненты MVP', () => {
     expect(render(<LearnScreen />).getByText('Юнит 0 · Основы')).toBeTruthy();
     expect(render(<StatsScreen />).getByText('Главные зоны повторения')).toBeTruthy();
     expect(render(<ProfileScreen />).getByText('Настройки')).toBeTruthy();
+  });
+
+  it('позволяет выбрать любой доступный спот для просмотра в статистике', () => {
+    const view = render(<StatsScreen />);
+    fireEvent.press(view.getByRole('button', { name: 'Сменить' }));
+    expect(view.getByText('Выберите спот')).toBeTruthy();
+    fireEvent.press(view.getByLabelText('Выбрать спот HJ · Опен-рейз (RFI)'));
+    expect(view.queryByText('Выберите спот')).toBeNull();
+    expect(view.getByText('HJ · Опен-рейз (RFI)')).toBeTruthy();
+  });
+
+  it('показывает настройки до компактной mock-лиги и честно отключает RNG', () => {
+    const view = render(<ProfileScreen />);
+    expect(view.getByLabelText('RNG-режим').props.accessibilityState.disabled).toBe(true);
+    expect(view.queryByText('SqueezeQueen')).toBeNull();
+    fireEvent.press(view.getByLabelText('Показать всю таблицу лиги'));
+    expect(view.getByText('SqueezeQueen')).toBeTruthy();
   });
 
   it('показывает заблокированное состояние узла пути', () => {
@@ -193,6 +213,7 @@ describe('основные компоненты MVP', () => {
       });
     });
     const view = render(<TrainingView onComplete={jest.fn()} />);
+    expect(view.getByText('Банк —')).toBeTruthy();
     fireEvent.press(view.getByRole('button', { name: 'Рейз' }));
     expect(view.getByText('Диапазон спота')).toBeTruthy();
     fireEvent.press(view.getByRole('button', { name: 'Вернуться к разбору' }));

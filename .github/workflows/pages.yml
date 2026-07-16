@@ -4,7 +4,15 @@ on:
   push:
     branches: [main]
     paths:
+      - "app/**"
+      - "assets/**"
+      - "src/**"
       - "site/**"
+      - "app.json"
+      - "babel.config.js"
+      - "metro.config.js"
+      - "package.json"
+      - "package-lock.json"
       - ".github/workflows/pages.yml"
   release:
     types: [published]
@@ -43,6 +51,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --legacy-peer-deps
       - name: Подставить данные последнего APK-релиза
         env:
           GH_TOKEN: ${{ github.token }}
@@ -59,10 +72,20 @@ jobs:
             jq -n --arg version "$version" --arg date "$date" --arg apk "$apk" --arg checksum "$checksum" --arg status "$status" \
               '{version:$version,date:$date,apkUrl:$apk,sha256:$checksum,minAndroid:"Android 7.0+",status:$status}' > site/release.json
           fi
+      - name: Настроить базовый путь GitHub Pages
+        run: |
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('app.json'));p.expo.experiments={...p.expo.experiments,baseUrl:'/preflop-trainer'};fs.writeFileSync('app.json',JSON.stringify(p,null,2)+'\n')"
+      - name: Собрать web-версию приложения
+        run: npm run export:web
+      - name: Добавить лендинг в web-сборку
+        run: |
+          mkdir -p dist/landing
+          cp -R site/. dist/landing/
+          touch dist/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: dist
       - name: Опубликовать GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

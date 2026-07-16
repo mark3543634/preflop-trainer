@@ -65,19 +65,25 @@ type ButtonProps = {
 };
 
 export function Button({ label, onPress, variant = 'primary', disabled, style }: ButtonProps) {
-  const bg =
-    variant === 'primary'
+  const bg = disabled
+    ? colors.surface
+    : variant === 'primary'
       ? colors.primary
       : variant === 'danger'
         ? colors.danger
         : variant === 'ghost'
           ? 'transparent'
           : colors.surface;
-  const fg = variant === 'primary' || variant === 'danger' ? colors.bg : colors.text;
+  const fg = disabled
+    ? colors.muted
+    : variant === 'primary' || variant === 'danger'
+      ? colors.bg
+      : colors.text;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
@@ -86,7 +92,7 @@ export function Button({ label, onPress, variant = 'primary', disabled, style }:
           backgroundColor: bg,
           borderWidth: variant === 'ghost' ? 1 : 0,
           borderColor: colors.border,
-          opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
+          opacity: disabled ? 0.72 : pressed ? 0.85 : 1,
         },
         style,
       ]}
@@ -137,6 +143,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   button: {
+    minHeight: 48,
     borderRadius: radius.button,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,

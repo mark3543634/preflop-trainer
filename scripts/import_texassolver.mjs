@@ -9,7 +9,8 @@
 //   OPENER_2.5bb_HERO_8.5bb|Call|FOLD.txt   -> hero faces an open (vs_RFI)
 //   HERO_2.5bb_V_11.0bb_HERO_24.0bb|Call|FOLD.txt -> hero opened, faces 3bet
 //   OPENER_2.5bb_HERO_8.5bb_OPENER_22.0bb_HERO_AllIn|Call|FOLD.txt -> vs 4bet
-// Multiway / squeeze trees (extra actors) are skipped for now.
+// Open + caller + hero branches are imported as squeeze nodes. Deeper multiway
+// and post-decision branches are skipped because they are outside RangeNode.
 //
 // Run: node scripts/import_texassolver.mjs
 // =============================================================================

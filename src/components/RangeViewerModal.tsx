@@ -7,7 +7,6 @@ import { Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } f
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { DecisionResult, HandKey, RangeNode } from '../types';
-import { rangeSource } from '../data/ranges';
 import { actionColor, colors, radius, spacing, verdictColor } from '../theme';
 import { AppText, Button, Card } from './primitives';
 import { FrequencyBar, nodeHandFreqs } from './FrequencyBar';
@@ -31,7 +30,6 @@ export function RangeViewerModal({
   const [selectedHand, setSelectedHand] = useState<HandKey>(playedHand);
 
   const gridWidth = Math.min(width - spacing.lg * 2, 390);
-  const source = rangeSource(node.providerId);
   const chosenFrequency = node.hands[playedHand]?.[result.chosen]?.freq ?? 0;
   const chosenColor =
     result.chosen === 'fold'
@@ -138,8 +136,7 @@ export function RangeViewerModal({
           <View style={styles.sourceNote}>
             <Ionicons name="information-circle-outline" size={17} color={colors.gold} />
             <AppText variant="caption" color={colors.muted} style={styles.sourceText}>
-              Источник: {source.title} · {source.license}. Частоты показаны напрямую из данных
-              выбранного пака.
+              Частоты показаны из основного набора диапазонов без изменения или усреднения.
             </AppText>
           </View>
         </ScrollView>

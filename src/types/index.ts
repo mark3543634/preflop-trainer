@@ -43,14 +43,28 @@ export interface RangeSource {
   openSizeLabel: string;
   rakeLabel: string;
   importedAt: string;
+  strategyConfidence: StrategyConfidence;
+  frequencyBasis: FrequencyBasis;
+  stackDepthVerified: boolean;
 }
 
 export interface SpotSizing {
   openBB?: number;
   raiseBB?: number;
+  /** Source expresses a raise as a multiplier of the previous bet (for example 3x). */
+  raiseMultiplier?: number;
   potBB?: number;
   effectiveStackBB: number;
 }
+
+/** How strongly the source supports calling the data an exact strategy. */
+export type StrategyConfidence =
+  | 'solver_verified'
+  | 'community_chart'
+  | 'community_transcription';
+
+/** What a numeric split in HandStrategy actually represents. */
+export type FrequencyBasis = 'solver_frequency' | 'source_visual_height' | 'source_category';
 
 // The "story" the user trains.
 export type ScenarioType =
@@ -81,6 +95,15 @@ export interface RangeNode {
   actions: Action[]; // legal actions in this node, in display order
   hands: Record<HandKey, HandStrategy>;
   sizing: SpotSizing;
+  strategyConfidence: StrategyConfidence;
+  frequencyBasis: FrequencyBasis;
+  /** Upstream chart identifier for traceability. */
+  sourceChartId?: number;
+  /** Original source note. It may describe opponent-dependent exploit branches. */
+  sourceNote?: string;
+  containsConditionalAdvice?: boolean;
+  /** Probability of reaching this node with each hand through the parent action. */
+  reachWeights?: Partial<Record<HandKey, number>>;
   note?: string; // optional coaching line shown in feedback
   PLACEHOLDER?: boolean; // legacy/import validation flag; public nodes must be false
 }

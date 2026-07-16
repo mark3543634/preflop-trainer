@@ -16,6 +16,8 @@ function node(hands: RangeNode['hands']): RangeNode {
     actions: ['3bet', 'call', 'fold'],
     hands,
     sizing: { effectiveStackBB: 100 },
+    strategyConfidence: 'solver_verified',
+    frequencyBasis: 'solver_frequency',
   };
 }
 
@@ -121,5 +123,14 @@ describe('grade — RNG mode', () => {
 
     const withoutRng = grade(n, 'TT', '3bet', { rng: 0.8 });
     expect(withoutRng.rngExpected).toBeUndefined();
+  });
+
+  it('does not interpret community chart heights as solver RNG frequencies', () => {
+    const communityNode: RangeNode = {
+      ...n,
+      strategyConfidence: 'community_chart',
+      frequencyBasis: 'source_visual_height',
+    };
+    expect(grade(communityNode, 'TT', '3bet', { rngMode: true, rng: 0.8 }).rngExpected).toBeUndefined();
   });
 });

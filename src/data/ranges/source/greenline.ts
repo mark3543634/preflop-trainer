@@ -3,9 +3,9 @@
 // Source: https://github.com/AHTOOOXA/poker-charts  (MIT License)
 //   Copyright (c) 2025-2026 Anton Safonov   (see LICENSE-poker-charts.txt)
 // Upstream note: extracted from GreenCharts2024 (Greenline Poker).
-// Same cell encoding as pekarstas.ts. Converted by ../convert.ts.
+// Legacy sparse-cell encoding. Converted by ../convert.ts.
 // =============================================================================
-import type { RawChart as _RawChart } from './pekarstas';
+import type { RawChart as _RawChart } from './rawTypes';
 
 export const charts: Record<string, _RawChart> = {
   // ============================================

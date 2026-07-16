@@ -1,7 +1,8 @@
 // =============================================================================
 // convert.ts — transforms vendored REAL provider charts (./source/*) into our
 // RangeNode schema. No strategy is invented here: we only re-encode the source
-// frequencies into our action vocabulary. See ./source/pekarstas.ts for origin.
+// frequencies into our action vocabulary. Pekarstas is read from the lossless
+// raw-chart JSON export; Greenline remains a typed upstream transcription.
 //
 // Source action semantics (contextual): raise = open/3bet/4bet, allin = jam/5bet,
 // call = passive, fold = fold. Unlisted hands fold. We map these onto our typed
@@ -18,13 +19,13 @@ import type {
   RangeNode,
   ScenarioType,
 } from '../../types';
-import {
-  charts as pekarstas,
-  type RawAction,
-  type RawCell,
-  type RawChart,
-} from './source/pekarstas';
+import { type RawAction, type RawCell, type RawChart } from './source/rawTypes';
 import { charts as greenline } from './source/greenline';
+import {
+  pekarstasLossless,
+  type LosslessChart,
+  type LosslessTarget,
+} from './source/pekarstasLossless';
 import { RANGE_SOURCES } from './sources';
 
 export interface ProviderInfo {
@@ -45,15 +46,6 @@ export const PROVIDERS: ProviderInfo[] = [
     description: 'Community-чарты MIT; не заявлены как точный solver output.',
   },
 ];
-
-// Providers backed by raw "chart" files (pekarstas/greenline) vs the prebuilt
-// node provider (texassolver).
-type ChartProviderId = 'pekarstas' | 'greenline';
-
-const PROVIDER_CHARTS: Record<ChartProviderId, Record<string, RawChart>> = {
-  pekarstas,
-  greenline,
-};
 
 // Their positions use "MP" where we use "HJ"; everything else matches.
 const POSITION_MAP: Record<string, Position> = {
@@ -191,6 +183,69 @@ function strategyFromCell(cell: RawCell, scenario: ScenarioType, aggressive: Act
   return strat;
 }
 
+/**
+ * Convert exact visual color heights from a Pekarstas raw chart.
+ *
+ * Unpainted height is fold. For the BB-vs-4bet derivative, colors that represent
+ * hands which only called the open are excluded and the remaining 3bet branch is
+ * normalized conditional on actually reaching the 4bet decision.
+ */
+function strategyFromWeightedColors(
+  colors: Record<string, number>,
+  target: LosslessTarget,
+  scenario: ScenarioType,
+  aggressive: Action,
+): HandStrategy {
+  const raw: Partial<Record<RawAction, number>> = {};
+  let mappedTotal = 0;
+  for (const [color, frequency] of Object.entries(colors)) {
+    const sourceAction = target.colorActions[color];
+    if (!sourceAction || !Number.isFinite(frequency) || frequency <= 0) continue;
+    raw[sourceAction] = (raw[sourceAction] ?? 0) + frequency;
+    mappedTotal += frequency;
+  }
+
+  if (target.normalizeMapped) {
+    if (mappedTotal <= 0) return { fold: { freq: 1 } };
+    for (const action of Object.keys(raw) as RawAction[]) {
+      raw[action] = (raw[action] ?? 0) / mappedTotal;
+    }
+  }
+
+  const acc: Partial<Record<Action, number>> = {};
+  const add = (action: Action, frequency: number) => {
+    acc[action] = (acc[action] ?? 0) + frequency;
+  };
+  for (const [sourceAction, frequency] of Object.entries(raw) as [RawAction, number][]) {
+    switch (sourceAction) {
+      case 'fold':
+        add('fold', frequency);
+        break;
+      case 'call':
+        add(scenario === 'RFI' ? 'fold' : 'call', frequency);
+        break;
+      case 'raise':
+      case 'allin':
+        add(aggressive, frequency);
+        break;
+    }
+  }
+
+  const strategy: HandStrategy = {};
+  let nonFold = 0;
+  for (const action of Object.keys(acc) as Action[]) {
+    if (action === 'fold') continue;
+    const frequency = round2(acc[action] ?? 0);
+    if (frequency > 0) {
+      strategy[action] = { freq: frequency };
+      nonFold += frequency;
+    }
+  }
+  const fold = round2(Math.max(0, 1 - nonFold));
+  if (fold > 0) strategy.fold = { freq: fold };
+  return strategy;
+}
+
 /** Build all RangeNodes for one source chart key. */
 function nodesFromChart(providerId: ProviderId, key: string, chart: RawChart): RangeNode[] {
   const parsed = parseKey(key);
@@ -227,6 +282,8 @@ function nodesFromChart(providerId: ProviderId, key: string, chart: RawChart): R
       actions,
       hands,
       sizing: { effectiveStackBB: 100 },
+      strategyConfidence: 'community_transcription',
+      frequencyBasis: 'source_category',
       // No coaching note is fabricated here. Feedback falls back to a generic
       // frequency-based explanation until an imported source provides notes.
     });
@@ -234,13 +291,149 @@ function nodesFromChart(providerId: ProviderId, key: string, chart: RawChart): R
   return out;
 }
 
+/** Build RangeNodes from one lossless Pekarstas raw chart. */
+function nodesFromLosslessChart(chart: LosslessChart): RangeNode[] {
+  const nodes: RangeNode[] = [];
+  for (const target of chart.targets) {
+    const parsed = parseKey(target.key);
+    if (!parsed) continue;
+    for (const scenario of targetScenarios(parsed.hero, parsed.src)) {
+      const { actions, aggressive } = actionsFor(scenario);
+      const hands: Record<HandKey, HandStrategy> = {};
+      for (const hand of allHands()) hands[hand] = { fold: { freq: 1 } };
+      for (const [hand, colors] of Object.entries(chart.cells)) {
+        if (hands[hand] === undefined) continue;
+        hands[hand] = strategyFromWeightedColors(colors, target, scenario, aggressive);
+      }
+      const villainPosition = scenario === 'RFI' ? undefined : parsed.villain;
+      nodes.push({
+        id: buildNodeId({
+          format: 'cash_6max',
+          stackBB: 100,
+          hero: parsed.hero,
+          scenario,
+          villainPosition,
+        }),
+        providerId: 'pekarstas',
+        sourceId: 'pekarstas',
+        format: 'cash_6max',
+        stackBB: 100,
+        hero: parsed.hero,
+        scenario,
+        villainPosition,
+        actions,
+        hands,
+        sizing: { effectiveStackBB: 100, ...chart.sizing },
+        strategyConfidence: 'community_chart',
+        frequencyBasis: 'source_visual_height',
+        sourceChartId: chart.sourceChartId,
+        sourceNote: chart.note || undefined,
+        containsConditionalAdvice: chart.containsConditionalAdvice,
+      });
+    }
+  }
+  return nodes;
+}
+
+function parentFor(node: RangeNode, nodesById: Record<string, RangeNode>): {
+  node: RangeNode;
+  action: Action;
+} | null {
+  if (node.scenario === 'vs_3bet') {
+    const id = buildNodeId({
+      format: node.format,
+      stackBB: node.stackBB,
+      hero: node.hero,
+      scenario: 'RFI',
+    });
+    const parent = nodesById[id];
+    return parent ? { node: parent, action: 'raise' } : null;
+  }
+  if (node.scenario === 'vs_4bet' && node.villainPosition) {
+    const parentScenario: ScenarioType = node.hero === 'BB' ? 'blind_defense' : 'vs_RFI';
+    const id = buildNodeId({
+      format: node.format,
+      stackBB: node.stackBB,
+      hero: node.hero,
+      scenario: parentScenario,
+      villainPosition: node.villainPosition,
+    });
+    const parent = nodesById[id];
+    return parent ? { node: parent, action: '3bet' } : null;
+  }
+  return null;
+}
+
+/**
+ * Reuse sizing already present in related source nodes. This derives numbers
+ * from chart data only: no table amount is guessed when a parent lacks sizing.
+ */
+function attachSourceSizing(nodes: RangeNode[]): RangeNode[] {
+  const byId = Object.fromEntries(nodes.map((node) => [node.id, node]));
+  const withOpenSizes = nodes.map((node) => {
+    let sizing = node.sizing;
+    if (
+      (node.scenario === 'vs_RFI' || node.scenario === 'blind_defense') &&
+      node.villainPosition &&
+      sizing.openBB === undefined
+    ) {
+      const openerId = buildNodeId({
+        format: node.format,
+        stackBB: node.stackBB,
+        hero: node.villainPosition,
+        scenario: 'RFI',
+      });
+      const openBB = byId[openerId]?.sizing.openBB;
+      if (openBB !== undefined) sizing = { ...sizing, openBB };
+    }
+    if (
+      sizing.raiseBB === undefined &&
+      sizing.openBB !== undefined &&
+      sizing.raiseMultiplier !== undefined
+    ) {
+      sizing = { ...sizing, raiseBB: round2(sizing.openBB * sizing.raiseMultiplier) };
+    }
+    return sizing === node.sizing ? node : { ...node, sizing };
+  });
+
+  const sizedById = Object.fromEntries(withOpenSizes.map((node) => [node.id, node]));
+  return withOpenSizes.map((node) => {
+    const parent = parentFor(node, sizedById);
+    if (!parent) return node;
+    const inherited = parent.node.sizing;
+    const sizing = {
+      ...node.sizing,
+      openBB: node.sizing.openBB ?? inherited.openBB,
+      raiseBB: node.sizing.raiseBB ?? inherited.raiseBB,
+    };
+    return { ...node, sizing };
+  });
+}
+
+/** Attach data-derived reach probabilities without branching on hand names. */
+function attachReachWeights(nodes: RangeNode[]): RangeNode[] {
+  const byId = Object.fromEntries(nodes.map((node) => [node.id, node]));
+  return nodes.map((node) => {
+    const parent = parentFor(node, byId);
+    if (!parent) return node;
+    const reachWeights: Partial<Record<HandKey, number>> = {};
+    for (const hand of allHands()) {
+      reachWeights[hand] = parent.node.hands[hand]?.[parent.action]?.freq ?? 0;
+    }
+    return { ...node, reachWeights };
+  });
+}
+
 /** Convert every vendored chart for a provider into RangeNodes. */
 export function buildRealNodes(provider: ProviderId): RangeNode[] {
-  const charts = PROVIDER_CHARTS[provider as ChartProviderId];
   if (!RANGE_SOURCES[provider].publicDistributionAllowed) return [];
   const out: RangeNode[] = [];
-  for (const [key, chart] of Object.entries(charts)) {
-    out.push(...nodesFromChart(provider, key, chart));
+  if (provider === 'pekarstas') {
+    for (const chart of pekarstasLossless.charts) out.push(...nodesFromLosslessChart(chart));
+  } else {
+    for (const [key, chart] of Object.entries(greenline)) {
+      out.push(...nodesFromChart(provider, key, chart));
+    }
   }
-  return out;
+  return attachReachWeights(attachSourceSizing(out));
 }

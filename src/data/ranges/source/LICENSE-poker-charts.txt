@@ -3,8 +3,8 @@ project "poker-charts" by Anton Safonov:
 
     https://github.com/AHTOOOXA/poker-charts
 
-Used under the MIT License (reproduced below). The data in pekarstas.ts is the
-"pekarstas" (GGPoker) chart pack from that project, re-encoded into this app's
+Used under the MIT License (reproduced below). The data in pekarstas-lossless.json is the
+"pekarstas" (GGPoker) chart pack from that project, preserving raw visual heights in this app's
 RangeNode schema by ../convert.ts. No modifications were made to the strategy
 itself.
 

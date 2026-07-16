@@ -4,7 +4,7 @@
 // reference node ids; if a node isn't shipped yet the lesson shows "coming soon"
 // instead of crashing (see lessonAvailability()).
 // =============================================================================
-import { hasNode } from './ranges';
+import { hasCombinedNode, hasNode } from './ranges';
 import type { HandKey, ProviderId } from '../types';
 
 export type LessonStep =
@@ -78,7 +78,7 @@ export const CURRICULUM: Unit[] = [
           {
             kind: 'concept',
             title: 'Как читать обратную связь',
-            body: 'После решения показываются частоты действий, GTO Score и потеря EV, если EV есть в источнике. Ошибки попадают в очередь повторения и никогда не блокируют обучение.',
+            body: 'После решения показываются действия исходного чарта, оценка совпадения и потеря EV, если EV есть в источнике. Ошибки попадают в очередь повторения и никогда не блокируют обучение.',
           },
         ],
       },
@@ -326,6 +326,11 @@ export function lessonNodeIds(lesson: Lesson): string[] {
 /** A lesson is "available" if every node it references is shipped. */
 export function lessonAvailable(lesson: Lesson, providerId: ProviderId): boolean {
   return lessonNodeIds(lesson).every((id) => hasNode(providerId, id));
+}
+
+/** Availability in the single user-facing combined library. */
+export function lessonAvailableCombined(lesson: Lesson): boolean {
+  return lessonNodeIds(lesson).every(hasCombinedNode);
 }
 
 /** Flat ordered list of lessons across all units (for unlock gating). */

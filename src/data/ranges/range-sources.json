@@ -10,8 +10,12 @@
       "publicDistributionAllowed": true,
       "format": "cash_6max",
       "stackBB": 100,
-      "openSizing": "not specified by source metadata",
+      "openSizing": "2.5bb; SB 3bb; per-chart values preserved in node data",
       "rake": "not specified by source metadata",
+      "strategyConfidence": "community_chart",
+      "frequencyBasis": "source_visual_height",
+      "stackDepthVerified": false,
+      "containsConditionalOpponentAdvice": true,
       "importedAt": "2026-07-16"
     },
     {
@@ -25,6 +29,10 @@
       "stackBB": 100,
       "openSizing": "varies by chart; not encoded in node data",
       "rake": "not specified by source metadata",
+      "strategyConfidence": "community_transcription",
+      "frequencyBasis": "source_category",
+      "stackDepthVerified": false,
+      "containsConditionalOpponentAdvice": true,
       "importedAt": "2026-07-16"
     }
   ]

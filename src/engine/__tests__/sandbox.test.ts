@@ -2,6 +2,7 @@ import { allNodes } from '../../data/ranges';
 import type { RangeNode } from '../../types';
 import {
   availableSandboxPositions,
+  missingSandboxSpots,
   resolveSandboxNodes,
   sandboxCoverage,
   sandboxScenarioAvailability,
@@ -57,5 +58,30 @@ describe('sandbox availability', () => {
     expect(vsRfi?.legalVillainPositions).toEqual(['UTG', 'HJ', 'CO']);
     expect(vsRfi?.availableVillainPositions).toEqual(['CO']);
     expect(vsRfi?.availableNodeCount).toBe(1);
+  });
+
+  it('reports every missing Pekarstas 100bb spot exactly', () => {
+    expect(missingSandboxSpots(nodes, 'cash_6max', 100)).toEqual([
+      { hero: 'BTN', scenario: 'squeeze', villainPosition: 'UTG' },
+      { hero: 'BTN', scenario: 'squeeze', villainPosition: 'HJ' },
+      { hero: 'BTN', scenario: 'squeeze', villainPosition: 'CO' },
+      { hero: 'BB', scenario: 'squeeze', villainPosition: 'UTG' },
+      { hero: 'BB', scenario: 'squeeze', villainPosition: 'HJ' },
+      { hero: 'BB', scenario: 'squeeze', villainPosition: 'CO' },
+      { hero: 'BB', scenario: 'squeeze', villainPosition: 'BTN' },
+      { hero: 'BB', scenario: 'squeeze', villainPosition: 'SB' },
+    ]);
+  });
+
+  it('reports Greenline gaps without mixing providers', () => {
+    const missing = missingSandboxSpots(allNodes('greenline'), 'cash_6max', 100);
+    expect(missing).toHaveLength(10);
+    expect(missing).toContainEqual({ hero: 'CO', scenario: 'vs_RFI', villainPosition: 'UTG' });
+    expect(missing).toContainEqual({ hero: 'CO', scenario: 'vs_RFI', villainPosition: 'HJ' });
+    expect(missing.filter((spot) => spot.scenario === 'squeeze')).toHaveLength(8);
+  });
+
+  it('reports all 46 legal nodes missing at an unsupported stack', () => {
+    expect(missingSandboxSpots(nodes, 'cash_6max', 40)).toHaveLength(46);
   });
 });

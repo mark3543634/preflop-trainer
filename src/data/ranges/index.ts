@@ -31,3 +31,23 @@ export function allNodeIds(providerId: ProviderId): string[] {
 export function allNodes(providerId: ProviderId): RangeNode[] {
   return pack(providerId).nodes;
 }
+
+/**
+ * One user-facing range library. Nodes are never averaged: Pekarstas is the
+ * preferred complete transcription and Greenline only fills an absent node.
+ * Each selected node keeps its internal providerId for audit and persistence.
+ */
+export function allCombinedNodes(): RangeNode[] {
+  const byId = new Map<string, RangeNode>();
+  for (const node of allNodes('greenline')) byId.set(node.id, node);
+  for (const node of allNodes('pekarstas')) byId.set(node.id, node);
+  return [...byId.values()];
+}
+
+export function getCombinedNode(nodeId: string): RangeNode | undefined {
+  return getNode('pekarstas', nodeId) ?? getNode('greenline', nodeId);
+}
+
+export function hasCombinedNode(nodeId: string): boolean {
+  return getCombinedNode(nodeId) !== undefined;
+}

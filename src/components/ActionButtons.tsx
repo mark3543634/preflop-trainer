@@ -53,6 +53,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 10 },
   btn: {
     flex: 1,
+    minHeight: 52,
     borderWidth: 1.5,
     borderRadius: radius.button,
     paddingVertical: 16,

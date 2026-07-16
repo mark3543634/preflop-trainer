@@ -76,13 +76,14 @@ export function TrainingView({
 
   const total = session.length;
   const instantSandboxDecision = meta?.origin === 'sandbox';
+  const rngAvailable = rngMode && displayNode.frequencyBasis === 'solver_frequency';
   const handNo = Math.min(session.position + (showFeedback ? 0 : 1), total);
   const liveScore = session.runningGtoScore();
   const actionBadges = tableActionBadges(
     displayNode,
     showFeedback ? lastResult?.chosen : undefined,
   );
-  const tableWidth = Math.min(330, Math.max(280, windowWidth - spacing.xl));
+  const tableWidth = Math.min(330, Math.max(270, windowWidth - spacing.xl * 2));
   const tableHeight = Math.round(tableWidth * 0.76);
   const holeCardSize = Math.round(Math.min(42, Math.max(34, tableWidth * 0.12)));
   const progress = total === 0 ? 0 : Math.min(100, (session.position / total) * 100);
@@ -102,7 +103,7 @@ export function TrainingView({
         <AppText variant="caption" color={colors.muted} style={{ flex: 1 }}>
           {spotTitle(displayNode.hero, displayNode.scenario, displayNode.villainPosition)}
         </AppText>
-        {rngMode ? (
+        {rngAvailable ? (
           <View style={styles.rngChip}>
             <Ionicons name="dice-outline" size={13} color={colors.gold} />
             <AppText variant="caption" color={colors.gold} weight="bold">
@@ -130,7 +131,7 @@ export function TrainingView({
           <View style={styles.infoDivider} />
           <View style={{ alignItems: 'flex-end' }}>
             <AppText variant="caption" color={colors.muted}>
-              GTO сейчас
+              По чарту
             </AppText>
             <AppText weight="black" color={colors.primary} style={{ fontSize: 20 }}>
               {liveScore}
@@ -143,23 +144,25 @@ export function TrainingView({
       </View>
 
       {/* felt + hole cards */}
-      <View style={styles.tableWrap}>
-        <Table
-          mode="play"
-          hero={displayNode.hero}
-          villainPosition={displayNode.villainPosition}
-          actionBadges={actionBadges}
-          potLabel={
-            displayNode.sizing.potBB === undefined
-              ? 'Банк: нет данных'
-              : `Банк ${displayNode.sizing.potBB}bb`
-          }
-          stackBB={displayNode.stackBB}
-          width={tableWidth}
-          height={tableHeight}
-        />
-        <View style={styles.cardsOverlay} pointerEvents="none">
-          <HoleCards hand={displayHand} size={holeCardSize} />
+      <View style={styles.tableArea}>
+        <View style={styles.tableWrap}>
+          <Table
+            mode="play"
+            hero={displayNode.hero}
+            villainPosition={displayNode.villainPosition}
+            actionBadges={actionBadges}
+            potLabel={
+              displayNode.sizing.potBB === undefined
+                ? 'Банк —'
+                : `Банк ${displayNode.sizing.potBB}bb`
+            }
+            stackBB={displayNode.stackBB}
+            width={tableWidth}
+            height={tableHeight}
+          />
+          <View style={styles.cardsOverlay} pointerEvents="none">
+            <HoleCards hand={displayHand} size={holeCardSize} />
+          </View>
         </View>
       </View>
 
@@ -204,7 +207,7 @@ export function TrainingView({
         <FeedbackOverlay
           node={feedbackNode}
           result={lastResult}
-          rngMode={rngMode}
+          rngMode={rngAvailable}
           onNext={advance}
           autoOpenRange={instantSandboxDecision}
           nextLabel={feedbackNextLabel}
@@ -254,7 +257,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: radius.pill },
-  tableWrap: { marginTop: spacing.lg, alignItems: 'center', justifyContent: 'center' },
+  tableArea: {
+    flex: 1,
+    minHeight: 270,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+  },
+  tableWrap: { alignItems: 'center', justifyContent: 'center' },
   cardsOverlay: {
     position: 'absolute',
     top: 0,
@@ -263,13 +273,12 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 28,
+    marginTop: 58,
   },
   controls: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
     gap: spacing.md,
   },
   confirm: {

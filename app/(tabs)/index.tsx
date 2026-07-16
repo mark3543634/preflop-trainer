@@ -1,15 +1,13 @@
 // Learn tab: the curriculum path with streak / XP / GTO header and unlock gating.
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { CURRICULUM, lessonAvailable, orderedLessons } from '../../src/data/curriculum';
+import { CURRICULUM, lessonAvailableCombined, orderedLessons } from '../../src/data/curriculum';
 import { PathNode, type PathNodeState } from '../../src/components/PathNode';
 import { AppText, Card } from '../../src/components/primitives';
 import { colors, radius, spacing } from '../../src/theme';
 import { useProgress } from '../../src/store/progressStore';
 import { useStats } from '../../src/store/statsStore';
 import { useReview } from '../../src/store/reviewStore';
-import { useSettings } from '../../src/store/settingsStore';
-import { PROVIDERS } from '../../src/data/ranges';
 import { levelFromXp } from '../../src/engine/progression';
 
 export default function LearnScreen() {
@@ -20,8 +18,6 @@ export default function LearnScreen() {
   const level = levelFromXp(xp);
   const globalScore = useStats((s) => s.globalGtoScore());
   const dueCount = useReview((s) => s.dueCount());
-  const provider = useSettings((s) => s.provider);
-  const providerLabel = PROVIDERS.find((p) => p.id === provider)?.label ?? provider;
 
   const ordered = orderedLessons();
 
@@ -43,14 +39,14 @@ export default function LearnScreen() {
       <Card style={styles.header}>
         <View style={styles.headerRow}>
           <HeaderStat label="🔥 Серия" value={`${currentStreak}`} />
-          <HeaderStat label="GTO" value={`${globalScore}`} color={colors.primary} />
+          <HeaderStat label="Чарт" value={`${globalScore}`} color={colors.primary} />
           <HeaderStat label={`Ур. ${level.level}`} value={`${xp} XP`} color={colors.gold} />
         </View>
         <View style={styles.xpBarTrack}>
           <View style={[styles.xpBarFill, { width: `${Math.round(level.progress * 100)}%` }]} />
         </View>
         <AppText variant="caption" color={colors.muted}>
-          Набор: {providerLabel} · изменить можно во вкладке «Тренировка»
+          Единая библиотека диапазонов · прогресс сохраняется автоматически
         </AppText>
       </Card>
 
@@ -77,7 +73,7 @@ export default function LearnScreen() {
           </AppText>
           <Card>
             {unit.lessons.map((lesson, i) => {
-              const available = lessonAvailable(lesson, provider);
+              const available = lessonAvailableCombined(lesson);
               const prog = lessons[lesson.id];
               return (
                 <View key={lesson.id}>
@@ -100,7 +96,15 @@ export default function LearnScreen() {
   );
 }
 
-function HeaderStat({ label, value, color = colors.text }: { label: string; value: string; color?: string }) {
+function HeaderStat({
+  label,
+  value,
+  color = colors.text,
+}: {
+  label: string;
+  value: string;
+  color?: string;
+}) {
   return (
     <View style={styles.headerStat}>
       <AppText variant="caption" color={colors.muted}>
@@ -115,7 +119,14 @@ function HeaderStat({ label, value, color = colors.text }: { label: string; valu
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
+  content: {
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
+    padding: spacing.lg,
+    gap: spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
   header: { gap: spacing.md },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between' },
   headerStat: { alignItems: 'center', flex: 1 },

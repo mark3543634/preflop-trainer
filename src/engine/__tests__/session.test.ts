@@ -32,6 +32,8 @@ const testNode: RangeNode = {
   actions: ['raise', 'fold'],
   hands: Object.fromEntries(allHands().map((h) => [h, { raise: { freq: 1, ev: 0 } }])),
   sizing: { effectiveStackBB: 100 },
+  strategyConfidence: 'solver_verified',
+  frequencyBasis: 'solver_frequency',
 };
 
 describe('sampleWeightedHand', () => {
@@ -54,6 +56,14 @@ describe('sampleWeightedHand', () => {
     }
     expect(offsuit).toBeGreaterThan(pair);
   });
+
+  it('respects data-derived reach weights', () => {
+    const reachWeights = Object.fromEntries(allHands().map((hand) => [hand, hand === 'AA' ? 1 : 0]));
+    const rng = mulberry32(123);
+    for (let i = 0; i < 100; i++) {
+      expect(sampleWeightedHand(rng, reachWeights)).toBe('AA');
+    }
+  });
 });
 
 describe('planSession', () => {
@@ -69,6 +79,18 @@ describe('planSession', () => {
 
   it('returns empty plan for no nodes', () => {
     expect(planSession([], 10, mulberry32(1))).toEqual([]);
+  });
+
+  it('does not deal hands that cannot reach an advanced node', () => {
+    const advancedNode: RangeNode = {
+      ...testNode,
+      id: 'advanced_node',
+      reachWeights: Object.fromEntries(
+        allHands().map((hand) => [hand, hand === 'AKs' || hand === 'AA' ? 1 : 0]),
+      ),
+    };
+    const plan = planSession([advancedNode], 100, mulberry32(77));
+    expect(plan.every((item) => item.hand === 'AKs' || item.hand === 'AA')).toBe(true);
   });
 });
 

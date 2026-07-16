@@ -4,8 +4,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { findLesson, lessonAvailable, type LessonStep } from '../../src/data/curriculum';
-import { getNode } from '../../src/data/ranges';
+import { findLesson, lessonAvailableCombined, type LessonStep } from '../../src/data/curriculum';
+import { getCombinedNode } from '../../src/data/ranges';
 import { useSession } from '../../src/store/sessionStore';
 import { useProgress } from '../../src/store/progressStore';
 import { TrainingView } from '../../src/components/TrainingView';
@@ -17,7 +17,6 @@ import { actionLabel } from '../../src/components/labels';
 import { masteryForScore } from '../../src/engine/progression';
 import { colors, spacing } from '../../src/theme';
 import type { RangeNode, SessionSummary } from '../../src/types';
-import { useSettings } from '../../src/store/settingsStore';
 
 export default function LessonRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -26,7 +25,6 @@ export default function LessonRoute() {
   const start = useSession((s) => s.start);
   const replay = useSession((s) => s.replay);
   const recordLessonResult = useProgress((s) => s.recordLessonResult);
-  const providerId = useSettings((s) => s.provider);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [checkpoint, setCheckpoint] = useState<{ summary: SessionSummary; passed: boolean } | null>(null);
@@ -46,7 +44,7 @@ export default function LessonRoute() {
     startedRef.current = stepIndex;
 
     if (current.kind === 'drill') {
-      const node = getNode(providerId, current.nodeId);
+      const node = getCombinedNode(current.nodeId);
       if (!node) return;
       start([node], current.length, {
         title: `${lesson?.title} · тренировка`,
@@ -55,7 +53,7 @@ export default function LessonRoute() {
         awardProgress: true,
       });
     } else {
-      const nodes = current.nodeIds.map((nodeId) => getNode(providerId, nodeId)).filter((n): n is RangeNode => !!n);
+      const nodes = current.nodeIds.map(getCombinedNode).filter((n): n is RangeNode => !!n);
       if (nodes.length === 0) return;
       start(nodes, current.length, {
         title: `${lesson?.title} · проверка`,
@@ -64,7 +62,7 @@ export default function LessonRoute() {
         awardProgress: true,
       });
     }
-  }, [current, stepIndex, lesson, providerId, start]);
+  }, [current, stepIndex, lesson, start]);
 
   if (!lesson) {
     return (
@@ -74,14 +72,14 @@ export default function LessonRoute() {
     );
   }
 
-  if (!lessonAvailable(lesson, providerId)) {
+  if (!lessonAvailableCombined(lesson)) {
     return (
       <Screen style={styles.center}>
         <AppText variant="title" weight="bold" center>
           🚧 Скоро
         </AppText>
         <AppText color={colors.muted} center style={{ marginTop: spacing.sm }}>
-          Для урока требуются лицензированные данные, которых пока нет в публичном наборе.
+          Для этого урока пока нет диапазона.
         </AppText>
         <Button label="Назад" onPress={() => router.back()} style={{ marginTop: spacing.lg }} />
       </Screen>
@@ -162,7 +160,7 @@ export default function LessonRoute() {
       );
 
     case 'worked': {
-      const node = getNode(providerId, current.nodeId);
+      const node = getCombinedNode(current.nodeId);
       return (
         <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
           <StepProgress index={stepIndex} total={steps.length} />

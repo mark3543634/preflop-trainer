@@ -27,10 +27,14 @@ function CardFace({ rank, suit, size }: { rank: string; suit: string; size: numb
   const red = suit === HEART || suit === DIAMOND;
   return (
     <View style={[styles.card, { width: size, height: size * 1.4 }]}>
-      <Text style={[styles.rank, { color: red ? colors.danger : '#111418', fontSize: size * 0.5 }]}>
+      <Text
+        style={[styles.rank, { color: red ? colors.danger : colors.cardInk, fontSize: size * 0.5 }]}
+      >
         {rank}
       </Text>
-      <Text style={[styles.suit, { color: red ? colors.danger : '#111418', fontSize: size * 0.5 }]}>
+      <Text
+        style={[styles.suit, { color: red ? colors.danger : colors.cardInk, fontSize: size * 0.5 }]}
+      >
         {suit}
       </Text>
     </View>
@@ -55,7 +59,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   card: {
-    backgroundColor: '#F7F9FC',
+    backgroundColor: colors.cardFace,
     borderRadius: radius.button,
     alignItems: 'center',
     justifyContent: 'center',

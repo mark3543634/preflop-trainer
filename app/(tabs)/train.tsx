@@ -1,18 +1,16 @@
 // Train tab: data-aware Sandbox builder — Table -> Position -> Scenario -> Drill.
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import type { GameFormat, Position, ProviderId, RangeNode, ScenarioType } from '../../src/types';
-import { POSITIONS } from '../../src/types';
+import type { GameFormat, Position, RangeNode, ScenarioType } from '../../src/types';
 import {
   availableSandboxPositions,
   resolveSandboxNodes,
   sandboxCoverage,
-  sandboxNodesInScope,
   sandboxScenarioAvailability,
 } from '../../src/engine/sandbox';
-import { allNodes, PROVIDERS, rangeSource } from '../../src/data/ranges';
+import { allCombinedNodes } from '../../src/data/ranges';
 import { useSession } from '../../src/store/sessionStore';
 import { useSettings } from '../../src/store/settingsStore';
 import { usePresets, type Preset } from '../../src/store/presetsStore';
@@ -115,18 +113,12 @@ function MiniChip({
   );
 }
 
-function providerLabel(providerId: ProviderId): string {
-  return PROVIDERS.find((item) => item.id === providerId)?.label ?? providerId;
-}
-
 export default function TrainScreen() {
   const router = useRouter();
   const presets = usePresets((state) => state.presets);
   const addPreset = usePresets((state) => state.addPreset);
   const removePreset = usePresets((state) => state.removePreset);
   const start = useSession((state) => state.start);
-  const provider = useSettings((state) => state.provider);
-  const setProvider = useSettings((state) => state.setProvider);
   const examMode = useSettings((state) => state.examMode);
   const examMistakeCap = useSettings((state) => state.examMistakeCap);
 
@@ -138,9 +130,10 @@ export default function TrainScreen() {
   const [length, setLength] = useState<number>(15);
   const [presetModalOpen, setPresetModalOpen] = useState(false);
   const [presetName, setPresetName] = useState('');
+  const scrollRef = useRef<ScrollView>(null);
+  const pendingScenarioScrollRef = useRef(false);
 
-  const providerNodes = useMemo(() => allNodes(provider), [provider]);
-  const source = rangeSource(provider);
+  const providerNodes = useMemo(() => allCombinedNodes(), []);
   const dataStacks = useMemo(
     () =>
       new Set(providerNodes.filter((node) => node.format === FORMAT).map((node) => node.stackBB)),
@@ -183,18 +176,19 @@ export default function TrainScreen() {
         : `${hero} · выберите сценарий`
     : 'Выберите позицию';
   const completedSteps = canLaunch ? 3 : hero ? 2 : 1;
+  const footerHint = canLaunch
+    ? `${length} решений · ${selectedNodes.length} ${selectedNodes.length === 1 ? 'спот' : 'спотов'}`
+    : !hero
+      ? 'Выберите позицию за столом'
+      : scenario && villainOptions.length > 0 && !villain
+        ? 'Выберите позицию соперника'
+        : 'Выберите доступный сценарий';
 
   function resetSpot(): void {
     setHero(null);
     setScenario(null);
     setVillain(null);
     setMix(false);
-  }
-
-  function chooseProvider(next: ProviderId): void {
-    if (next === provider) return;
-    setProvider(next);
-    resetSpot();
   }
 
   function chooseStack(next: number): void {
@@ -247,7 +241,7 @@ export default function TrainScreen() {
     if (!name) return;
     addPreset({
       name,
-      providerId: provider,
+      providerId: selectedNodes[0]?.providerId ?? 'pekarstas',
       format: FORMAT,
       stackBB,
       hero,
@@ -262,7 +256,7 @@ export default function TrainScreen() {
   }
 
   function nodesForPreset(preset: Preset): RangeNode[] {
-    return resolveSandboxNodes(allNodes(preset.providerId), {
+    return resolveSandboxNodes(allCombinedNodes(), {
       format: preset.format,
       stackBB: preset.stackBB,
       hero: preset.hero,
@@ -300,13 +294,17 @@ export default function TrainScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+      <ScrollView
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+      >
         <View>
           <AppText variant="heading" weight="black" center>
             Соберите свой спот
           </AppText>
           <AppText variant="caption" color={colors.muted} center style={styles.headingHint}>
-            Только комбинации, реально присутствующие в выбранном наборе
+            Только комбинации, для которых есть данные
           </AppText>
         </View>
 
@@ -344,56 +342,15 @@ export default function TrainScreen() {
             })}
           </View>
 
-          <AppText variant="caption" color={colors.muted} weight="bold">
-            НАБОР ДИАПАЗОНОВ
-          </AppText>
-          <View style={styles.providerGrid}>
-            {PROVIDERS.map((item) => {
-              const active = provider === item.id;
-              const packNodes = allNodes(item.id);
-              const nodeCount = POSITIONS.reduce(
-                (total, position) =>
-                  total +
-                  sandboxNodesInScope(packNodes, {
-                    format: FORMAT,
-                    stackBB,
-                    hero: position,
-                  }).length,
-                0,
-              );
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  key={item.id}
-                  onPress={() => chooseProvider(item.id)}
-                  style={[styles.providerCard, active ? styles.providerCardActive : null]}
-                >
-                  <View style={styles.providerTitleRow}>
-                    <AppText weight="bold" color={active ? colors.primary : colors.text}>
-                      {item.label}
-                    </AppText>
-                    {active ? (
-                      <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
-                    ) : null}
-                  </View>
-                  <AppText variant="caption" color={colors.muted}>
-                    {nodeCount} спотов · MIT
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </View>
-
           <View style={styles.sourceNote}>
-            <Ionicons name="information-circle-outline" size={18} color={colors.gold} />
+            <Ionicons name="layers-outline" size={18} color={colors.primary} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <AppText variant="caption" weight="bold">
-                {source.title}
+                Основной набор диапазонов
               </AppText>
               <AppText variant="caption" color={colors.muted}>
-                Open size: {source.openSizeLabel} · рейк: {source.rakeLabel}. Community-чарты, не
-                заявлены как точный solver output.
+                Доступные споты объединены в одну библиотеку. Сайзинги берутся из данных каждого
+                конкретного спота.
               </AppText>
             </View>
           </View>
@@ -411,6 +368,7 @@ export default function TrainScreen() {
               setScenario(null);
               setVillain(null);
               setMix(false);
+              pendingScenarioScrollRef.current = true;
             }}
             width={300}
             height={190}
@@ -423,7 +381,15 @@ export default function TrainScreen() {
         </GlowCard>
 
         {hero ? (
-          <>
+          <View
+            style={styles.scenarioSection}
+            onLayout={(event) => {
+              if (!pendingScenarioScrollRef.current) return;
+              pendingScenarioScrollRef.current = false;
+              const y = Math.max(0, event.nativeEvent.layout.y - spacing.md);
+              requestAnimationFrame(() => scrollRef.current?.scrollTo({ y, animated: true }));
+            }}
+          >
             <SectionLabel text="3 · Сценарий" />
             <GlowCard active={canLaunch}>
               {scenarioOptions.map((option) => {
@@ -545,7 +511,7 @@ export default function TrainScreen() {
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <AppText weight="bold">{selectionTitle}</AppText>
                     <AppText variant="caption" color={colors.muted}>
-                      {providerLabel(provider)} · {stackBB} BB · {selectedNodes.length}{' '}
+                      {stackBB} BB · {selectedNodes.length}{' '}
                       {selectedNodes.length === 1 ? 'спот' : 'спотов'}
                     </AppText>
                   </View>
@@ -564,7 +530,7 @@ export default function TrainScreen() {
                 </AppText>
               </View>
             )}
-          </>
+          </View>
         ) : null}
 
         {presets.length > 0 ? (
@@ -597,7 +563,7 @@ export default function TrainScreen() {
                           {preset.name}
                         </AppText>
                         <AppText variant="caption" color={colors.muted}>
-                          {providerLabel(preset.providerId)} · {preset.stackBB} BB · {preset.length}{' '}
+                          {preset.stackBB} BB · {preset.length}{' '}
                           рук
                         </AppText>
                       </View>
@@ -636,7 +602,7 @@ export default function TrainScreen() {
             {canLaunch ? selectionTitle : 'Соберите спот'}
           </AppText>
           <AppText variant="caption" color={colors.muted}>
-            {canLaunch ? `${length} решений · ${selectedNodes.length} узл.` : 'Шаги 1–3'}
+            {footerHint}
           </AppText>
         </View>
         <Button
@@ -663,7 +629,7 @@ export default function TrainScreen() {
                   Название пресета
                 </AppText>
                 <AppText variant="caption" color={colors.muted}>
-                  Сохранится вместе с паком, стеком и длиной.
+                  Сохранится вместе со спотом, стеком и длиной.
                 </AppText>
               </View>
               <Pressable onPress={() => setPresetModalOpen(false)} style={styles.closeButton}>
@@ -837,24 +803,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  providerGrid: { width: '100%', flexDirection: 'row', gap: spacing.sm },
-  providerCard: {
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.button,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  providerCardActive: { borderColor: colors.primaryDim, backgroundColor: colors.bg },
-  providerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.xs,
-  },
   sourceNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -874,6 +822,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   scenarioRowSelected: { borderColor: colors.primaryDim, backgroundColor: colors.bg },
+  scenarioSection: { gap: spacing.sm },
   villainRow: { gap: spacing.sm, paddingHorizontal: spacing.sm, paddingBottom: spacing.md },
   rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   mixDivider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.xs },
@@ -971,7 +920,7 @@ const styles = StyleSheet.create({
   startButton: { flex: 1, paddingHorizontal: spacing.sm },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.72)',
+    backgroundColor: colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.lg,

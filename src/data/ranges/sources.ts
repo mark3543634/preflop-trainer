@@ -14,9 +14,12 @@ export const RANGE_SOURCES: Record<ProviderId, RangeSource> = {
     publicDistributionAllowed: true,
     format: 'cash_6max',
     stackBB: 100,
-    openSizeLabel: 'не указан в источнике',
+    openSizeLabel: '2.5 BB; SB 3 BB',
     rakeLabel: 'не указан в источнике',
     importedAt: '2026-07-16',
+    strategyConfidence: 'community_chart',
+    frequencyBasis: 'source_visual_height',
+    stackDepthVerified: false,
   },
   greenline: {
     id: 'greenline',
@@ -30,6 +33,9 @@ export const RANGE_SOURCES: Record<ProviderId, RangeSource> = {
     openSizeLabel: 'зависит от чарта; не закодирован в данных',
     rakeLabel: 'не указан в источнике',
     importedAt: '2026-07-16',
+    strategyConfidence: 'community_transcription',
+    frequencyBasis: 'source_category',
+    stackDepthVerified: false,
   },
 };
 

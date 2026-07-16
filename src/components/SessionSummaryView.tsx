@@ -44,7 +44,7 @@ export function SessionSummaryView({
 
       <View style={styles.scoreWrap}>
         <AppText variant="caption" color={colors.muted}>
-          GTO SCORE
+          СОВПАДЕНИЕ С ЧАРТОМ
         </AppText>
         <AppText weight="black" color={scoreColor} style={{ fontSize: 64 }}>
           {summary.gtoScore}

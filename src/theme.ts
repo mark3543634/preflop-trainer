@@ -15,6 +15,18 @@ export const colors = {
   muted: '#8A93A2',
   // Subtle borders/dividers derived from surface.
   border: '#2A313C',
+  overlay: 'rgba(0,0,0,0.62)',
+  felt: '#0F1A18',
+  feltBorder: '#243C36',
+  feltInner: '#1C302B',
+  feltChip: '#16201D',
+  primarySoft: 'rgba(39,224,161,0.08)',
+  primaryBorder: 'rgba(39,224,161,0.40)',
+  dangerSoft: 'rgba(255,107,107,0.08)',
+  dangerBorder: 'rgba(255,107,107,0.35)',
+  dangerTrack: 'rgba(255,107,107,0.15)',
+  cardFace: '#F7F9FC',
+  cardInk: '#111418',
 } as const;
 
 export const radius = {
@@ -78,7 +90,24 @@ export function glow(color: string = colors.primary, radius = 14, opacity = 0.22
 }
 
 // Deterministic avatar tint per seat (felt-table players).
-export const avatarPalette = ['#7C9CF5', '#F5A65B', '#C77DFF', '#5BD1F5', '#F57DA8', '#9BE36D'] as const;
+export const avatarPalette = [
+  '#7C9CF5',
+  '#F5A65B',
+  '#C77DFF',
+  '#5BD1F5',
+  '#F57DA8',
+  '#9BE36D',
+] as const;
 
-export const theme = { colors, radius, spacing, fontWeight, fontSize, verdictColor, actionColor, glow, avatarPalette };
+export const theme = {
+  colors,
+  radius,
+  spacing,
+  fontWeight,
+  fontSize,
+  verdictColor,
+  actionColor,
+  glow,
+  avatarPalette,
+};
 export type Theme = typeof theme;

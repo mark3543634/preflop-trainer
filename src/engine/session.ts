@@ -36,13 +36,21 @@ export function shouldEndExam(examMode: boolean, mistakes: number, cap: number):
  * Sample a single hand weighted by combo counts (pair=6, suited=4, offsuit=12)
  * so common spots show up more often than rare ones.
  */
-export function sampleWeightedHand(rng: Rng = defaultRng): HandKey {
+export function sampleWeightedHand(
+  rng: Rng = defaultRng,
+  reachWeights?: Partial<Record<HandKey, number>>,
+): HandKey {
   const hands = allHands();
   let total = 0;
-  for (const h of hands) total += comboCount(h);
+  const reachOf = (hand: HandKey): number =>
+    reachWeights === undefined ? 1 : Math.max(0, reachWeights[hand] ?? 0);
+  for (const h of hands) total += comboCount(h) * reachOf(h);
+  // Missing/broken parent data must not crash a drill. Validation tests catch
+  // this for public nodes; the unconditional fallback keeps imported local data usable.
+  if (total <= 0) return sampleWeightedHand(rng);
   let roll = rng() * total;
   for (const h of hands) {
-    roll -= comboCount(h);
+    roll -= comboCount(h) * reachOf(h);
     if (roll < 0) return h;
   }
   return hands[hands.length - 1]; // floating-point fallback
@@ -62,7 +70,11 @@ export function planSession(
   const planned: PlannedHand[] = [];
   for (let i = 0; i < length; i++) {
     const node = nodes[Math.floor(rng() * nodes.length) % nodes.length];
-    planned.push({ providerId: node.providerId, nodeId: node.id, hand: sampleWeightedHand(rng) });
+    planned.push({
+      providerId: node.providerId,
+      nodeId: node.id,
+      hand: sampleWeightedHand(rng, node.reachWeights),
+    });
   }
   return planned;
 }

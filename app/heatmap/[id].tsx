@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { getNode } from '../../src/data/ranges';
+import { getCombinedNode, getNode } from '../../src/data/ranges';
 import { RangeHeatmap, HeatmapLegend } from '../../src/components/RangeHeatmap';
 import { FrequencyBar, nodeHandFreqs } from '../../src/components/FrequencyBar';
 import { HoleCards } from '../../src/components/HoleCards';
@@ -10,14 +10,13 @@ import { AppText, Card, Screen } from '../../src/components/primitives';
 import { spotTitle } from '../../src/components/labels';
 import { colors, spacing } from '../../src/theme';
 import type { HandKey } from '../../src/types';
-import { useSettings } from '../../src/store/settingsStore';
 import { isPublicProvider } from '../../src/storage/migrations';
 
 export default function HeatmapRoute() {
   const { id, provider } = useLocalSearchParams<{ id: string; provider?: string }>();
-  const activeProvider = useSettings((state) => state.provider);
-  const providerId = isPublicProvider(provider) ? provider : activeProvider;
-  const node = getNode(providerId, String(id));
+  const node = isPublicProvider(provider)
+    ? getNode(provider, String(id))
+    : getCombinedNode(String(id));
   const { width } = useWindowDimensions();
   const [selected, setSelected] = useState<HandKey | null>(null);
 

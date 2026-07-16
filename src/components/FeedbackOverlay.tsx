@@ -3,7 +3,7 @@
 // frequency bar for the hand, stat tiles, one coaching line, and "Next hand".
 // =============================================================================
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import type { DecisionResult, RangeNode } from '../types';
 import { colors, radius, spacing, verdictColor } from '../theme';
 import { AppText, Button } from './primitives';
@@ -26,13 +26,13 @@ function coachingLine(node: RangeNode, r: DecisionResult): string {
   const chosen = actionLabel(r.chosen);
   switch (r.grade.verdict) {
     case 'best':
-      return `${chosen} — самое частое действие с ${r.hand} в этом споте.`;
+      return `${chosen} — самое частое действие с ${r.hand} в выбранном чарте.`;
     case 'correct':
       return `${chosen} входит в допустимый микс, но ${best} встречается чаще.`;
     case 'inaccuracy':
       return `${chosen} редко используется с ${r.hand}. Предпочтительнее ${best}.`;
     case 'blunder':
-      return `${chosen} отсутствует в стратегии для ${r.hand}. Здесь следует выбрать ${best}.`;
+      return `${chosen} отсутствует в выбранном чарте для ${r.hand}. Здесь указано ${best}.`;
   }
 }
 
@@ -60,47 +60,54 @@ export function FeedbackOverlay({
   return (
     <View style={styles.wrap}>
       <View style={[styles.sheet, { borderTopColor: vc }]}>
-        <View style={[styles.verdictPill, { backgroundColor: vc }]}>
-          <AppText weight="bold" color={colors.bg}>
-            {VERDICT_TITLE[result.grade.verdict]}
-          </AppText>
-        </View>
-
-        <View style={styles.section}>
-          <FrequencyBar
-            frequencies={result.grade.frequencies}
-            order={node.actions}
-            chosen={result.chosen}
-          />
-        </View>
-
-        <View style={styles.tiles}>
-          <StatTile label="GTO Score" value={scoreText} color={vc} />
-          <StatTile
-            label="Потеря EV (bb)"
-            value={evText}
-            color={result.grade.evLoss ? colors.gold : colors.muted}
-          />
-          <StatTile label="Лучшее" value={bestText} color={colors.primary} />
-        </View>
-
-        {rngMode && result.grade.rngExpected ? (
-          <View style={styles.rngNote}>
-            <AppText variant="caption" color={colors.muted}>
-              🎲 RNG указал: {actionLabel(result.grade.rngExpected)} (только информация)
+        <View style={styles.handle} />
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.sheetContent}
+        >
+          <View style={[styles.verdictPill, { backgroundColor: vc }]}>
+            <AppText weight="bold" color={colors.bg}>
+              {VERDICT_TITLE[result.grade.verdict]}
             </AppText>
           </View>
-        ) : null}
 
-        <AppText variant="body" color={colors.text} style={styles.coach}>
-          {coachingLine(node, result)}
-        </AppText>
+          <View style={styles.section}>
+            <FrequencyBar
+              frequencies={result.grade.frequencies}
+              order={node.actions}
+              chosen={result.chosen}
+            />
+          </View>
 
-        {node.PLACEHOLDER ? (
-          <AppText variant="caption" color={colors.muted} style={{ marginBottom: spacing.sm }}>
-            ⚠ Тестовые данные — не настоящий solver output.
+          <View style={styles.tiles}>
+            <StatTile label="Оценка по чарту" value={scoreText} color={vc} />
+            <StatTile
+              label="Потеря EV (bb)"
+              value={evText}
+              color={result.grade.evLoss ? colors.gold : colors.muted}
+            />
+            <StatTile label="Лучшее" value={bestText} color={colors.primary} />
+          </View>
+
+          {rngMode && result.grade.rngExpected ? (
+            <View style={styles.rngNote}>
+              <AppText variant="caption" color={colors.muted}>
+                🎲 RNG указал: {actionLabel(result.grade.rngExpected)} (только информация)
+              </AppText>
+            </View>
+          ) : null}
+
+          <AppText variant="body" color={colors.text} style={styles.coach}>
+            {coachingLine(node, result)}
           </AppText>
-        ) : null}
+
+          {node.containsConditionalAdvice ? (
+            <AppText variant="caption" color={colors.muted}>
+              ⚠ Некоторые действия в исходном чарте зависят от типа соперника. Это не подтверждённые
+              solver-frequency.
+            </AppText>
+          ) : null}
+        </ScrollView>
 
         <View style={styles.actions}>
           <Button
@@ -125,16 +132,30 @@ export function FeedbackOverlay({
 const styles = StyleSheet.create({
   wrap: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   sheet: {
+    maxHeight: '88%',
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.card,
     borderTopRightRadius: radius.card,
     borderTopWidth: 4,
-    padding: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+  },
+  handle: {
+    width: 42,
+    height: 4,
+    borderRadius: radius.pill,
+    backgroundColor: colors.border,
+    alignSelf: 'center',
+    marginBottom: spacing.sm,
+  },
+  sheetContent: {
     gap: spacing.md,
+    paddingBottom: spacing.md,
   },
   verdictPill: {
     alignSelf: 'center',
@@ -158,5 +179,6 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: spacing.sm,
+    paddingTop: spacing.sm,
   },
 });

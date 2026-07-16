@@ -127,7 +127,14 @@ export function grade(
 
   // (7) RNG mode: walk the cumulative frequency distribution with the roll and
   //     report the implied action. Informational only — never changes grading.
-  if (options.rngMode && options.rng !== undefined) {
+  // Community chart heights can encode opponent-dependent branches rather than
+  // solver randomization. RNG bucketing is therefore enabled only for verified
+  // solver frequencies.
+  if (
+    options.rngMode &&
+    options.rng !== undefined &&
+    node.frequencyBasis === 'solver_frequency'
+  ) {
     result.rngExpected = rngImpliedAction(node, strat, options.rng);
   }
 
