@@ -127,6 +127,6 @@ describe('основные компоненты MVP', () => {
     const raises = view.getAllByText('РЕЙЗ');
     fireEvent.press(raises[0]);
     fireEvent.press(view.getAllByText('РЕЙЗ')[1]);
-    expect(view.getByText(/действие|Верно|Неточность|Ошибка/)).toBeTruthy();
+    expect(view.getByRole('button', { name: 'Следующая рука' })).toBeTruthy();
   });
 });
