@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "module": "commonjs",
+    "target": "es2019",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "types": ["jest", "node"]
+  },
+  "include": ["src/engine/**/*.ts", "src/types/**/*.ts", "src/data/ranges/**/*.ts", "src/storage/migrations.ts", "src/storage/__tests__/**/*.ts"]
+}

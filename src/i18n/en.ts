@@ -1,0 +1,28 @@
+import type { ru } from './ru';
+
+export const en: Record<keyof typeof ru, string> = {
+  'tabs.learn': 'Learn',
+  'tabs.train': 'Train',
+  'tabs.stats': 'Stats',
+  'tabs.profile': 'Profile',
+  'screen.training': 'Training',
+  'screen.review': 'Review',
+  'screen.lesson': 'Lesson',
+  'screen.range': 'Range',
+  'action.fold': 'Fold',
+  'action.call': 'Call',
+  'action.raise': 'Raise',
+  'action.3bet': '3-Bet',
+  'action.4bet': '4-Bet',
+  'action.5bet': 'All-in',
+  'scenario.RFI': 'Open (RFI)',
+  'scenario.vs_RFI': 'vs Open',
+  'scenario.vs_3bet': 'vs 3-Bet',
+  'scenario.vs_4bet': 'vs 4-Bet',
+  'scenario.squeeze': 'Squeeze',
+  'scenario.blind_defense': 'Blind Defense',
+  'verdict.best': 'Best play',
+  'verdict.correct': 'Correct (mix)',
+  'verdict.inaccuracy': 'Inaccuracy',
+  'verdict.blunder': 'Blunder',
+};

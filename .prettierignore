@@ -1,0 +1,7 @@
+node_modules
+.expo
+dist
+coverage
+.local
+package-lock.json
+src/data/ranges/source/*.ts

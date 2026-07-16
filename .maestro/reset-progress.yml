@@ -1,0 +1,9 @@
+appId: com.prefloptrainer.app
+name: Сброс локального прогресса
+---
+- launchApp
+- tapOn: "Профиль"
+- tapOn: "Сбросить прогресс"
+- assertVisible: "Сбросить прогресс?"
+- tapOn: "Сбросить"
+- assertVisible: "0 XP"

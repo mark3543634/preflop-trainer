@@ -1,0 +1,49 @@
+name: Сайт
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Подставить данные последнего APK-релиза
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" 2>/dev/null || true)
+          if [ -n "$release" ]; then
+            version=$(echo "$release" | jq -r '.tag_name')
+            date=$(echo "$release" | jq -r '.published_at | split("T")[0]')
+            apk=$(echo "$release" | jq -r '.assets[] | select(.name == "preflop-trainer.apk") | .browser_download_url' | head -1)
+            checksum_url=$(echo "$release" | jq -r '.assets[] | select(.name == "preflop-trainer.apk.sha256") | .browser_download_url' | head -1)
+            checksum="Не опубликован"
+            if [ -n "$checksum_url" ]; then checksum=$(curl -fsSL "$checksum_url" | awk '{print $1}'); fi
+            jq -n --arg version "$version" --arg date "$date" --arg apk "$apk" --arg checksum "$checksum" \
+              '{version:$version,date:$date,apkUrl:$apk,sha256:$checksum,minAndroid:"Android 7.0+",status:"release"}' > site/release.json
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Опубликовать GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

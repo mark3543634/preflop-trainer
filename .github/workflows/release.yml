@@ -1,0 +1,39 @@
+name: Android APK release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - run: npm run check
+      - run: npx expo-doctor
+      - run: npm run export:web
+      - name: Собрать подписанный APK через EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx eas-cli@latest build --platform android --profile preview --non-interactive --wait --json > eas-build.json
+      - name: Скачать APK и вычислить SHA-256
+        run: |
+          url=$(jq -r '.[0].artifacts.buildUrl' eas-build.json)
+          test -n "$url" && test "$url" != "null"
+          curl -fL "$url" -o preflop-trainer.apk
+          sha256sum preflop-trainer.apk > preflop-trainer.apk.sha256
+      - name: Опубликовать GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" preflop-trainer.apk preflop-trainer.apk.sha256 \
+            --title "Preflop Trainer ${GITHUB_REF_NAME}" \
+            --generate-notes

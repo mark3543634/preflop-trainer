@@ -1,0 +1,28 @@
+name: Проверки
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:ci
+      - run: npx expo-doctor
+      - run: npm run export:web
+      - name: Запрещённые локальные данные не попали в bundle
+        run: |
+          if grep -R -E "texassolver_100bb|pio3x_100bb|TexasSolver-v" dist; then
+            echo "В публичном web bundle найдена ссылка на локальный solver-пак"
+            exit 1
+          fi

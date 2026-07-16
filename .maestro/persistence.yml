@@ -1,0 +1,14 @@
+appId: com.prefloptrainer.app
+name: Пресет сохраняется после перезапуска
+---
+- launchApp:
+    clearState: true
+- tapOn: "Тренировка"
+- tapOn: "BTN"
+- tapOn: "Все сфолдили до меня"
+- tapOn: "Сохранить"
+- stopApp
+- launchApp
+- tapOn: "Тренировка"
+- assertVisible: "Сохранённые пресеты"
+- assertVisible: "BTN · Опен-рейз \(RFI\)"

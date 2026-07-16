@@ -1,0 +1,25 @@
+appId: com.prefloptrainer.app
+name: Песочница — сессия из 10 рук
+---
+- launchApp:
+    clearState: true
+- tapOn: "Тренировка"
+- assertVisible: "Соберите свой спот"
+- tapOn: "BTN"
+- tapOn: "Все сфолдили до меня"
+- tapOn: "10 рук"
+- tapOn: "Начать"
+- repeat:
+    times: 10
+    commands:
+      - tapOn:
+          text: "ФОЛД"
+          index: 0
+      - tapOn:
+          text: "ФОЛД"
+          index: 1
+      - assertVisible:
+          text: "Лучшее действие|Верно \(микс\)|Неточность|Ошибка"
+      - tapOn: "Следующая рука"
+- assertVisible: "Сессия завершена"
+- assertVisible: "GTO SCORE"

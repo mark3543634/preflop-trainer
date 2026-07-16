@@ -1,0 +1,14 @@
+node_modules/
+.expo/
+.expo-audit-export/
+dist/
+web-build/
+android/
+ios/
+.local/
+coverage/
+*.log
+build-gradle*.log
+release/
+.DS_Store
+expo-env.d.ts

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "id": "pekarstas",
+      "title": "Pekarstas (GG community charts)",
+      "url": "https://github.com/AHTOOOXA/poker-charts",
+      "revision": "c7192b3bda783d4a0f12f37a6f9876daaf25151c",
+      "license": "MIT",
+      "publicDistributionAllowed": true,
+      "format": "cash_6max",
+      "stackBB": 100,
+      "openSizing": "not specified by source metadata",
+      "rake": "not specified by source metadata",
+      "importedAt": "2026-07-16"
+    },
+    {
+      "id": "greenline",
+      "title": "Greenline community charts",
+      "url": "https://github.com/AHTOOOXA/poker-charts",
+      "revision": "c7192b3bda783d4a0f12f37a6f9876daaf25151c",
+      "license": "MIT",
+      "publicDistributionAllowed": true,
+      "format": "cash_6max",
+      "stackBB": 100,
+      "openSizing": "varies by chart; not encoded in node data",
+      "rake": "not specified by source metadata",
+      "importedAt": "2026-07-16"
+    }
+  ]
+}
