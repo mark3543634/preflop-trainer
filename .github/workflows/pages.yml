@@ -30,7 +30,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           release=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" 2>/dev/null || true)
-          if [ -n "$release" ]; then
+          if [ -n "$release" ] && echo "$release" | jq -e '.tag_name and .published_at' >/dev/null; then
             version=$(echo "$release" | jq -r '.tag_name')
             date=$(echo "$release" | jq -r '.published_at | split("T")[0]')
             apk=$(echo "$release" | jq -r '.assets[] | select(.name == "preflop-trainer.apk") | .browser_download_url' | head -1)
