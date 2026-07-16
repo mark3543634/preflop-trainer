@@ -2,6 +2,7 @@
 // FeedbackOverlay — shown after each decision. Verdict header (color-coded),
 // frequency bar for the hand, stat tiles, one coaching line, and "Next hand".
 // =============================================================================
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { DecisionResult, RangeNode } from '../types';
 import { colors, radius, spacing, verdictColor } from '../theme';
@@ -10,6 +11,7 @@ import { FrequencyBar } from './FrequencyBar';
 import { StatTile } from './StatTile';
 import { actionLabel } from './labels';
 import { t } from '../i18n';
+import { RangeViewerModal } from './RangeViewerModal';
 
 const VERDICT_TITLE = {
   best: t('verdict.best'),
@@ -47,9 +49,9 @@ export function FeedbackOverlay({
   onNext: () => void;
   nextLabel?: string;
 }) {
+  const [rangeVisible, setRangeVisible] = useState(false);
   const vc = verdictColor[result.grade.verdict];
-  const scoreText =
-    (result.grade.score > 0 ? '+' : '') + String(result.grade.score);
+  const scoreText = (result.grade.score > 0 ? '+' : '') + String(result.grade.score);
   const evText = result.grade.evLoss === null ? '—' : `${result.grade.evLoss.toFixed(2)}`;
   const bestText = result.grade.bestActions.map(actionLabel).join(' / ') || '—';
 
@@ -72,7 +74,11 @@ export function FeedbackOverlay({
 
         <View style={styles.tiles}>
           <StatTile label="GTO Score" value={scoreText} color={vc} />
-          <StatTile label="Потеря EV (bb)" value={evText} color={result.grade.evLoss ? colors.gold : colors.muted} />
+          <StatTile
+            label="Потеря EV (bb)"
+            value={evText}
+            color={result.grade.evLoss ? colors.gold : colors.muted}
+          />
           <StatTile label="Лучшее" value={bestText} color={colors.primary} />
         </View>
 
@@ -94,8 +100,22 @@ export function FeedbackOverlay({
           </AppText>
         ) : null}
 
-        <Button label={nextLabel} onPress={onNext} />
+        <View style={styles.actions}>
+          <Button
+            label="Посмотреть диапазон"
+            variant="surface"
+            onPress={() => setRangeVisible(true)}
+            style={{ flex: 1 }}
+          />
+          <Button label={nextLabel} onPress={onNext} style={{ flex: 1 }} />
+        </View>
       </View>
+      <RangeViewerModal
+        visible={rangeVisible}
+        node={node}
+        playedHand={result.hand}
+        onClose={() => setRangeVisible(false)}
+      />
     </View>
   );
 }
@@ -132,5 +152,9 @@ const styles = StyleSheet.create({
   },
   coach: {
     lineHeight: 20,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
 });

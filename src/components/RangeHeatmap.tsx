@@ -6,6 +6,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RANKS, type Action, type HandKey, type RangeNode } from '../types';
 import { actionColor, colors, fontWeight } from '../theme';
+import { actionLabel } from './labels';
 
 function cellHand(r: number, c: number): HandKey {
   const a = RANKS[r];
@@ -19,11 +20,13 @@ function Cell({
   node,
   hand,
   size,
+  selected,
   onPress,
 }: {
   node: RangeNode;
   hand: HandKey;
   size: number;
+  selected?: boolean;
   onPress?: (h: HandKey) => void;
 }) {
   const strat = node.hands[hand] ?? {};
@@ -34,6 +37,9 @@ function Cell({
 
   return (
     <Pressable
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={`Рука ${hand}${selected ? ', выбрана' : ''}`}
+      accessibilityState={{ selected }}
       onPress={onPress ? () => onPress(hand) : undefined}
       style={[styles.cell, { width: size, height: size }]}
     >
@@ -45,12 +51,16 @@ function Cell({
             slices.map((s) => (
               <View
                 key={s.action}
-                style={{ flex: s.freq / total, backgroundColor: actionColor[s.action] ?? colors.muted }}
+                style={{
+                  flex: s.freq / total,
+                  backgroundColor: actionColor[s.action] ?? colors.muted,
+                }}
               />
             ))
           )}
         </View>
       </View>
+      {selected ? <View pointerEvents="none" style={styles.selectedOutline} /> : null}
       <Text style={[styles.cellText, { fontSize: size * 0.32 }]}>{hand}</Text>
     </Pressable>
   );
@@ -59,10 +69,12 @@ function Cell({
 export function RangeHeatmap({
   node,
   width = 340,
+  selectedHand,
   onSelectHand,
 }: {
   node: RangeNode;
   width?: number;
+  selectedHand?: HandKey;
   onSelectHand?: (h: HandKey) => void;
 }) {
   const size = Math.floor(width / 13);
@@ -72,7 +84,16 @@ export function RangeHeatmap({
         <View key={r} style={styles.row}>
           {RANKS.map((__, c) => {
             const hand = cellHand(r, c);
-            return <Cell key={c} node={node} hand={hand} size={size} onPress={onSelectHand} />;
+            return (
+              <Cell
+                key={c}
+                node={node}
+                hand={hand}
+                size={size}
+                selected={selectedHand === hand}
+                onPress={onSelectHand}
+              />
+            );
           })}
         </View>
       ))}
@@ -87,7 +108,7 @@ export function HeatmapLegend({ actions }: { actions: Action[] }) {
       {actions.map((a) => (
         <View key={a} style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: actionColor[a] ?? colors.muted }]} />
-          <Text style={styles.legendText}>{a}</Text>
+          <Text style={styles.legendText}>{actionLabel(a)}</Text>
         </View>
       ))}
     </View>
@@ -112,6 +133,12 @@ const styles = StyleSheet.create({
   cellText: {
     color: colors.bg,
     fontWeight: fontWeight.bold,
+  },
+  selectedOutline: {
+    ...StyleSheet.absoluteFill,
+    borderWidth: 3,
+    borderColor: colors.text,
+    zIndex: 2,
   },
   legend: {
     flexDirection: 'row',

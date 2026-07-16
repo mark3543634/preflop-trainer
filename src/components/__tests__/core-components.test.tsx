@@ -114,6 +114,35 @@ describe('основные компоненты MVP', () => {
     expect(view.getByText(/самое частое действие/)).toBeTruthy();
   });
 
+  it('открывает диапазон текущего спота после решения и выделяет сыгранную руку', () => {
+    const result: DecisionResult = {
+      providerId: 'pekarstas',
+      nodeId: node.id,
+      hand: 'AA',
+      chosen: 'raise',
+      grade: {
+        verdict: 'best',
+        score: 100,
+        evLoss: null,
+        bestActions: ['raise'],
+        frequencies: { raise: 1 },
+      },
+    };
+    const view = render(
+      <FeedbackOverlay node={node} result={result} rngMode={false} onNext={jest.fn()} />,
+    );
+
+    fireEvent.press(view.getByRole('button', { name: 'Посмотреть диапазон' }));
+    expect(view.getByText('Диапазон спота')).toBeTruthy();
+    expect(view.getByText('AA — сыгранная рука выделена рамкой')).toBeTruthy();
+    expect(view.getByLabelText('Рука AA, выбрана').props.accessibilityState.selected).toBe(true);
+
+    fireEvent.press(view.getByLabelText('Рука KQs'));
+    expect(view.getByText('Выбранная рука диапазона')).toBeTruthy();
+    fireEvent.press(view.getByRole('button', { name: 'Вернуться к разбору' }));
+    expect(view.queryByText('Диапазон спота')).toBeNull();
+  });
+
   it('проводит решение через общий TrainingView', () => {
     act(() => {
       useSession.getState().start([node], 1, {
