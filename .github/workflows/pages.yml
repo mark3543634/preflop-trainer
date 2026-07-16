@@ -6,6 +6,8 @@ on:
     paths:
       - "site/**"
       - ".github/workflows/pages.yml"
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -29,7 +31,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          release=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" 2>/dev/null || true)
+          release=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=1" --jq '.[0]' 2>/dev/null || true)
           if [ -n "$release" ] && echo "$release" | jq -e '.tag_name and .published_at' >/dev/null; then
             version=$(echo "$release" | jq -r '.tag_name')
             date=$(echo "$release" | jq -r '.published_at | split("T")[0]')
@@ -37,8 +39,9 @@ jobs:
             checksum_url=$(echo "$release" | jq -r '.assets[] | select(.name == "preflop-trainer.apk.sha256") | .browser_download_url' | head -1)
             checksum="Не опубликован"
             if [ -n "$checksum_url" ]; then checksum=$(curl -fsSL "$checksum_url" | awk '{print $1}'); fi
-            jq -n --arg version "$version" --arg date "$date" --arg apk "$apk" --arg checksum "$checksum" \
-              '{version:$version,date:$date,apkUrl:$apk,sha256:$checksum,minAndroid:"Android 7.0+",status:"release"}' > site/release.json
+            status=$(echo "$release" | jq -r 'if .prerelease then "preview" else "release" end')
+            jq -n --arg version "$version" --arg date "$date" --arg apk "$apk" --arg checksum "$checksum" --arg status "$status" \
+              '{version:$version,date:$date,apkUrl:$apk,sha256:$checksum,minAndroid:"Android 7.0+",status:$status}' > site/release.json
           fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

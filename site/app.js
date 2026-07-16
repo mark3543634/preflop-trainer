@@ -16,7 +16,7 @@ async function loadRelease() {
         button.href = release.apkUrl;
         button.classList.remove('disabled');
         button.removeAttribute('aria-disabled');
-        button.textContent = 'Скачать APK';
+        button.textContent = release.status === 'preview' ? 'Скачать тестовый APK' : 'Скачать APK';
       });
     }
   } catch {
