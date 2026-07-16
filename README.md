@@ -79,7 +79,7 @@ npm run check
 
 В [`eas.json`](eas.json) настроены профили:
 
-- `development` — development client;
+- `development` — внутренний тестовый APK;
 - `preview` — устанавливаемый APK;
 - `production` — будущий Google Play AAB.
 
