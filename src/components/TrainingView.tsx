@@ -75,6 +75,7 @@ export function TrainingView({
   }
 
   const total = session.length;
+  const instantSandboxDecision = meta?.origin === 'sandbox';
   const handNo = Math.min(session.position + (showFeedback ? 0 : 1), total);
   const liveScore = session.runningGtoScore();
   const actionBadges = tableActionBadges(
@@ -88,6 +89,10 @@ export function TrainingView({
   const advance = () => {
     setSelected(null);
     next();
+  };
+  const chooseAction = (action: Action) => {
+    setSelected(action);
+    if (instantSandboxDecision) submit(action);
   };
 
   return (
@@ -163,34 +168,36 @@ export function TrainingView({
         <ActionButtons
           actions={displayNode.actions}
           selected={selected}
-          onSelect={setSelected}
+          onSelect={chooseAction}
           disabled={showFeedback}
         />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={
-            selected ? `Подтвердить: ${actionLabel(selected)}` : 'Выберите действие'
-          }
-          accessibilityState={{ disabled: showFeedback || !selected }}
-          disabled={showFeedback || !selected}
-          onPress={() => selected && submit(selected)}
-          style={({ pressed }) => [
-            styles.confirm,
-            {
-              backgroundColor: selected ? colors.primary : colors.surface,
-              opacity: showFeedback ? 0.5 : pressed ? 0.85 : 1,
-            },
-            selected ? glow(colors.primary, 16, 0.35) : null,
-          ]}
-        >
-          <AppText
-            weight="black"
-            color={selected ? colors.bg : colors.muted}
-            style={{ fontSize: 18, letterSpacing: 0.5 }}
+        {!instantSandboxDecision ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              selected ? `Подтвердить: ${actionLabel(selected)}` : 'Выберите действие'
+            }
+            accessibilityState={{ disabled: showFeedback || !selected }}
+            disabled={showFeedback || !selected}
+            onPress={() => selected && submit(selected)}
+            style={({ pressed }) => [
+              styles.confirm,
+              {
+                backgroundColor: selected ? colors.primary : colors.surface,
+                opacity: showFeedback ? 0.5 : pressed ? 0.85 : 1,
+              },
+              selected ? glow(colors.primary, 16, 0.35) : null,
+            ]}
           >
-            {selected ? actionLabel(selected).toUpperCase() : 'ВЫБЕРИТЕ ДЕЙСТВИЕ'}
-          </AppText>
-        </Pressable>
+            <AppText
+              weight="black"
+              color={selected ? colors.bg : colors.muted}
+              style={{ fontSize: 18, letterSpacing: 0.5 }}
+            >
+              {selected ? actionLabel(selected).toUpperCase() : 'ВЫБЕРИТЕ ДЕЙСТВИЕ'}
+            </AppText>
+          </Pressable>
+        ) : null}
       </View>
 
       {showFeedback && lastResult && feedbackNode ? (
@@ -199,6 +206,7 @@ export function TrainingView({
           result={lastResult}
           rngMode={rngMode}
           onNext={advance}
+          autoOpenRange={instantSandboxDecision}
           nextLabel={feedbackNextLabel}
         />
       ) : null}

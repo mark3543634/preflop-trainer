@@ -1,6 +1,6 @@
 // =============================================================================
-// ActionButtons — selectable legal-action chips (from node.actions). Tapping a
-// chip selects it; a separate primary button confirms (see TrainingView).
+// ActionButtons — legal-action chips from node.actions. The parent decides
+// whether a tap submits instantly (Sandbox) or needs confirmation (lessons).
 // =============================================================================
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Action } from '../types';

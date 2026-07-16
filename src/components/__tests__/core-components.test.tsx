@@ -130,10 +130,15 @@ describe('основные компоненты MVP', () => {
       },
     };
     const view = render(
-      <FeedbackOverlay node={node} result={result} rngMode={false} onNext={jest.fn()} />,
+      <FeedbackOverlay
+        node={node}
+        result={result}
+        rngMode={false}
+        autoOpenRange
+        onNext={jest.fn()}
+      />,
     );
 
-    fireEvent.press(view.getByRole('button', { name: 'Посмотреть диапазон' }));
     expect(view.getByText('Диапазон спота')).toBeTruthy();
     expect(view.getByText('AA · Вы выбрали: Рейз')).toBeTruthy();
     expect(view.getByText('Ваш выбор')).toBeTruthy();
@@ -188,9 +193,25 @@ describe('основные компоненты MVP', () => {
       });
     });
     const view = render(<TrainingView onComplete={jest.fn()} />);
-    const raises = view.getAllByText('РЕЙЗ');
-    fireEvent.press(raises[0]);
-    fireEvent.press(view.getAllByText('РЕЙЗ')[1]);
+    fireEvent.press(view.getByRole('button', { name: 'Рейз' }));
+    expect(view.getByText('Диапазон спота')).toBeTruthy();
+    fireEvent.press(view.getByRole('button', { name: 'Вернуться к разбору' }));
     expect(view.getByRole('button', { name: 'Следующая рука' })).toBeTruthy();
+  });
+
+  it('оставляет подтверждение действия в учебном режиме', () => {
+    act(() => {
+      useSession.getState().start([node], 1, {
+        title: 'Тест урока',
+        origin: 'lesson',
+        examMode: false,
+        awardProgress: false,
+      });
+    });
+    const view = render(<TrainingView onComplete={jest.fn()} />);
+    fireEvent.press(view.getByRole('button', { name: 'Рейз' }));
+
+    expect(view.queryByText('Диапазон спота')).toBeNull();
+    expect(view.getByRole('button', { name: 'Подтвердить: Рейз' })).toBeTruthy();
   });
 });

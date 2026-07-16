@@ -41,15 +41,17 @@ export function FeedbackOverlay({
   result,
   rngMode,
   onNext,
+  autoOpenRange = false,
   nextLabel = 'Следующая рука',
 }: {
   node: RangeNode;
   result: DecisionResult;
   rngMode: boolean;
   onNext: () => void;
+  autoOpenRange?: boolean;
   nextLabel?: string;
 }) {
-  const [rangeVisible, setRangeVisible] = useState(false);
+  const [rangeVisible, setRangeVisible] = useState(autoOpenRange);
   const vc = verdictColor[result.grade.verdict];
   const scoreText = (result.grade.score > 0 ? '+' : '') + String(result.grade.score);
   const evText = result.grade.evLoss === null ? '—' : `${result.grade.evLoss.toFixed(2)}`;
