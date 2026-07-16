@@ -11,6 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: read
   pages: write
   id-token: write
@@ -20,7 +21,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  refresh-after-release:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Запустить публикацию из разрешённой ветки main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/pages.yml/dispatches" \
+            -f ref=main
+
   deploy:
+    if: github.event_name != 'release'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
