@@ -17,7 +17,9 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  # The lightweight release dispatcher must not be cancelled by the deployment
+  # it starts. Push/manual deployments still cancel older deployments.
+  group: ${{ github.event_name == 'release' && 'pages-refresh' || 'pages-deploy' }}
   cancel-in-progress: true
 
 jobs:
