@@ -25,6 +25,9 @@ export function ActionButtons({
         return (
           <Pressable
             key={action}
+            accessibilityRole="button"
+            accessibilityLabel={actionLabel(action)}
+            accessibilityState={{ selected: isSel, disabled }}
             disabled={disabled}
             onPress={() => onSelect(action)}
             style={({ pressed }) => [

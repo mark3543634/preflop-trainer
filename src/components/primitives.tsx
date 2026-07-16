@@ -76,6 +76,8 @@ export function Button({ label, onPress, variant = 'primary', disabled, style }:
   const fg = variant === 'primary' || variant === 'danger' ? colors.bg : colors.text;
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
@@ -105,12 +107,15 @@ export function Pill({
 }) {
   return (
     <View
-      style={[
-        styles.pill,
-        { borderColor: color, backgroundColor: filled ? color : 'transparent' },
-      ]}
+      style={[styles.pill, { borderColor: color, backgroundColor: filled ? color : 'transparent' }]}
     >
-      <Text style={{ color: filled ? colors.bg : color, fontSize: fontSize.caption, fontWeight: fontWeight.semibold }}>
+      <Text
+        style={{
+          color: filled ? colors.bg : color,
+          fontSize: fontSize.caption,
+          fontWeight: fontWeight.semibold,
+        }}
+      >
         {label}
       </Text>
     </View>

@@ -5,6 +5,8 @@ import ProfileScreen from '../../../app/(tabs)/profile';
 import StatsScreen from '../../../app/(tabs)/stats';
 import { getNode } from '../../data/ranges';
 import { useSession } from '../../store/sessionStore';
+import { usePresets } from '../../store/presetsStore';
+import { useSettings } from '../../store/settingsStore';
 import type { DecisionResult } from '../../types';
 import { FeedbackOverlay } from '../FeedbackOverlay';
 import { PathNode } from '../PathNode';
@@ -17,14 +19,56 @@ if (!node) throw new Error('Core test node is missing');
 
 describe('основные компоненты MVP', () => {
   afterEach(() => {
-    act(() => useSession.getState().abort());
+    act(() => {
+      useSession.getState().abort();
+      usePresets.setState({ presets: [] });
+      useSettings.setState({ provider: 'pekarstas', examMode: false });
+    });
   });
 
   it('рендерит песочницу и помечает недоступные глубины', () => {
     const view = render(<TrainScreen />);
     expect(view.getByText('Соберите свой спот')).toBeTruthy();
     expect(view.getByText('40 BB · скоро')).toBeTruthy();
-    expect(view.getByText('MTT · скоро')).toBeTruthy();
+    expect(view.getByText('MTT · нет данных')).toBeTruthy();
+    expect(view.getByRole('button', { name: 'Начать' }).props.accessibilityState.disabled).toBe(
+      true,
+    );
+  });
+
+  it('разрешает запуск только после выбора реально доступного спота', () => {
+    const view = render(<TrainScreen />);
+    fireEvent.press(view.getByLabelText('Позиция BTN'));
+    expect(view.getByText('Все сфолдили до меня')).toBeTruthy();
+    expect(
+      view.getByLabelText('Опен и колл передо мной, нет данных').props.accessibilityState.disabled,
+    ).toBe(true);
+    fireEvent.press(view.getByText('Все сфолдили до меня'));
+    expect(view.getAllByText('BTN · Опен-рейз (RFI)').length).toBeGreaterThan(0);
+    expect(view.getByRole('button', { name: 'Начать' }).props.accessibilityState.disabled).toBe(
+      false,
+    );
+    fireEvent.press(view.getByText('Начать'));
+    expect(useSession.getState().session?.length).toBe(15);
+  });
+
+  it('сохраняет именованный provider-aware пресет', () => {
+    const view = render(<TrainScreen />);
+    fireEvent.press(view.getByLabelText('Позиция BTN'));
+    fireEvent.press(view.getByText('Все сфолдили до меня'));
+    fireEvent.press(view.getByText('Сохранить'));
+    const input = view.getByLabelText('Название пресета');
+    fireEvent.changeText(input, 'Мой BTN RFI');
+    fireEvent.press(view.getAllByText('Сохранить')[1]);
+    expect(usePresets.getState().presets[0]).toMatchObject({
+      name: 'Мой BTN RFI',
+      providerId: 'pekarstas',
+      stackBB: 100,
+      hero: 'BTN',
+      scenario: 'RFI',
+      mix: false,
+      length: 15,
+    });
   });
 
   it('рендерит Learn, Stats и Profile без циклических Zustand-селекторов', () => {
@@ -35,9 +79,7 @@ describe('основные компоненты MVP', () => {
 
   it('показывает заблокированное состояние узла пути', () => {
     const onPress = jest.fn();
-    const view = render(
-      <PathNode title="Защита блайндов" state="locked" onPress={onPress} />,
-    );
+    const view = render(<PathNode title="Защита блайндов" state="locked" onPress={onPress} />);
     expect(view.getByText('🔒')).toBeTruthy();
     expect(onPress).not.toHaveBeenCalled();
   });
@@ -69,6 +111,7 @@ describe('основные компоненты MVP', () => {
     expect(view.getByText('Лучшее действие')).toBeTruthy();
     expect(view.getByText('Потеря EV (bb)')).toBeTruthy();
     expect(view.getByText('—')).toBeTruthy();
+    expect(view.getByText(/самое частое действие/)).toBeTruthy();
   });
 
   it('проводит решение через общий TrainingView', () => {

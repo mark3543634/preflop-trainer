@@ -4,7 +4,7 @@
 // Fires onComplete(summary) once the session finishes.
 // =============================================================================
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSession } from '../store/sessionStore';
 import { useSettings } from '../store/settingsStore';
@@ -34,6 +34,7 @@ export function TrainingView({
   const rngMode = useSettings((s) => s.rngMode);
   const meta = useSession((s) => s.meta);
   const examMistakes = useSession((s) => s.examMistakes);
+  const { width: windowWidth } = useWindowDimensions();
 
   const [selected, setSelected] = useState<Action | null>(null);
 
@@ -56,7 +57,9 @@ export function TrainingView({
     return <Screen style={styles.center} />;
   }
 
-  const feedbackNode = lastResult ? session.nodeFor(lastResult.providerId, lastResult.nodeId) : undefined;
+  const feedbackNode = lastResult
+    ? session.nodeFor(lastResult.providerId, lastResult.nodeId)
+    : undefined;
   const liveNode = session.currentNode();
   const liveHand = session.current()?.hand;
   const displayNode = showFeedback && feedbackNode ? feedbackNode : liveNode;
@@ -74,6 +77,9 @@ export function TrainingView({
   const handNo = Math.min(session.position + (showFeedback ? 0 : 1), total);
   const liveScore = session.runningGtoScore();
   const villainBadge = villainBadgeFor(displayNode.scenario);
+  const tableWidth = Math.min(330, Math.max(280, windowWidth - spacing.xl));
+  const tableHeight = Math.round(tableWidth * 0.76);
+  const progress = total === 0 ? 0 : Math.min(100, (session.position / total) * 100);
   const advance = () => {
     setSelected(null);
     next();
@@ -122,6 +128,9 @@ export function TrainingView({
           </View>
         </View>
       </View>
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${progress}%` }]} />
+      </View>
 
       {/* felt + hole cards */}
       <View style={styles.tableWrap}>
@@ -130,10 +139,14 @@ export function TrainingView({
           hero={displayNode.hero}
           villainPosition={displayNode.villainPosition}
           villainBadge={villainBadge}
-          potLabel={displayNode.sizing.potBB === undefined ? 'Pot —' : `Pot ${displayNode.sizing.potBB}bb`}
+          potLabel={
+            displayNode.sizing.potBB === undefined
+              ? 'Банк: нет данных'
+              : `Банк ${displayNode.sizing.potBB}bb`
+          }
           stackBB={displayNode.stackBB}
-          width={330}
-          height={250}
+          width={tableWidth}
+          height={tableHeight}
         />
         <View style={styles.cardsOverlay} pointerEvents="none">
           <HoleCards hand={displayHand} size={58} />
@@ -149,6 +162,11 @@ export function TrainingView({
           disabled={showFeedback}
         />
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            selected ? `Подтвердить: ${actionLabel(selected)}` : 'Выберите действие'
+          }
+          accessibilityState={{ disabled: showFeedback || !selected }}
           disabled={showFeedback || !selected}
           onPress={() => selected && submit(selected)}
           style={({ pressed }) => [
@@ -160,7 +178,11 @@ export function TrainingView({
             selected ? glow(colors.primary, 16, 0.35) : null,
           ]}
         >
-          <AppText weight="black" color={selected ? colors.bg : colors.muted} style={{ fontSize: 18, letterSpacing: 0.5 }}>
+          <AppText
+            weight="black"
+            color={selected ? colors.bg : colors.muted}
+            style={{ fontSize: 18, letterSpacing: 0.5 }}
+          >
             {selected ? actionLabel(selected).toUpperCase() : 'ВЫБЕРИТЕ ДЕЙСТВИЕ'}
           </AppText>
         </Pressable>
@@ -210,6 +232,15 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   infoDivider: { width: 1, height: 28, backgroundColor: colors.border },
+  progressTrack: {
+    height: 3,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+  },
+  progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: radius.pill },
   tableWrap: { marginTop: spacing.lg, alignItems: 'center', justifyContent: 'center' },
   cardsOverlay: {
     position: 'absolute',

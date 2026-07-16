@@ -1,7 +1,7 @@
 // =============================================================================
 // labels.ts — display strings for actions/scenarios. Pure, no UI.
 // =============================================================================
-import type { Action, ScenarioType } from '../types';
+import type { Action, ScenarioType, Verdict } from '../types';
 import { t } from '../i18n';
 
 export function actionLabel(action: Action): string {
@@ -38,6 +38,19 @@ export function scenarioLabel(scenario: ScenarioType): string {
   }
 }
 
+export function verdictLabel(verdict: Verdict): string {
+  switch (verdict) {
+    case 'best':
+      return t('verdict.best');
+    case 'correct':
+      return t('verdict.correct');
+    case 'inaccuracy':
+      return t('verdict.inaccuracy');
+    case 'blunder':
+      return t('verdict.blunder');
+  }
+}
+
 /** The action the villain has taken that hero is responding to (for the badge). */
 export function villainBadgeFor(scenario: ScenarioType): string | undefined {
   switch (scenario) {
@@ -55,11 +68,7 @@ export function villainBadgeFor(scenario: ScenarioType): string | undefined {
 }
 
 /** Short human title for a spot, e.g. "BTN · Open" or "BB vs BTN · Blind Defense". */
-export function spotTitle(
-  hero: string,
-  scenario: ScenarioType,
-  villainPosition?: string,
-): string {
+export function spotTitle(hero: string, scenario: ScenarioType, villainPosition?: string): string {
   if (villainPosition) return `${hero} vs ${villainPosition} · ${scenarioLabel(scenario)}`;
   return `${hero} · ${scenarioLabel(scenario)}`;
 }

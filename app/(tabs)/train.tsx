@@ -1,47 +1,80 @@
-// Train tab: Scenario Builder — Table -> Position (oval picker) -> Scenario.
+// Train tab: data-aware Sandbox builder — Table -> Position -> Scenario -> Drill.
 import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import type { Position, ScenarioType, RangeNode } from '../../src/types';
-import { legalScenarios } from '../../src/engine/scenarios';
-import { buildNodeId } from '../../src/engine/nodeId';
-import { getNode, allNodes, PROVIDERS, rangeSource } from '../../src/data/ranges';
+import type { GameFormat, Position, ProviderId, RangeNode, ScenarioType } from '../../src/types';
+import { POSITIONS } from '../../src/types';
+import {
+  availableSandboxPositions,
+  resolveSandboxNodes,
+  sandboxCoverage,
+  sandboxNodesInScope,
+  sandboxScenarioAvailability,
+} from '../../src/engine/sandbox';
+import { allNodes, PROVIDERS, rangeSource } from '../../src/data/ranges';
 import { useSession } from '../../src/store/sessionStore';
 import { useSettings } from '../../src/store/settingsStore';
 import { usePresets, type Preset } from '../../src/store/presetsStore';
 import { AppText, Button } from '../../src/components/primitives';
 import { Table } from '../../src/components/Table';
-import { spotTitle } from '../../src/components/labels';
+import { actionLabel, spotTitle } from '../../src/components/labels';
 import { colors, glow, radius, spacing } from '../../src/theme';
 
+const FORMAT: GameFormat = 'cash_6max';
 const STACK_OPTIONS = [100, 40, 20, 12] as const;
 const LENGTHS = [10, 15, 25] as const;
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-// Canonical scenario rows (shown for every position; illegal ones are disabled).
-const SCENARIO_ROWS: {
-  id: ScenarioType;
-  icon: IoniconName;
-  title: string;
-  desc: string;
-  villainLabel: string;
-}[] = [
-  { id: 'RFI', icon: 'hand-left-outline', title: 'Все сфолдили до меня', desc: 'рейз или фолд', villainLabel: '' },
-  { id: 'vs_RFI', icon: 'arrow-up-outline', title: 'Против опен-рейза', desc: '3-бет / колл / фолд', villainLabel: 'Позиция рейзера' },
-  { id: 'vs_3bet', icon: 'trending-up-outline', title: 'Я открылся и получил 3-бет', desc: '4-бет / колл / фолд', villainLabel: 'Позиция 3-беттера' },
-  { id: 'vs_4bet', icon: 'rocket-outline', title: 'Против 4-бета', desc: '5-бет / колл / фолд', villainLabel: 'Позиция 4-беттера' },
-  { id: 'squeeze', icon: 'play-forward-outline', title: 'Сквиз', desc: '3-бет / колл / фолд', villainLabel: 'Первоначальный рейзер' },
-  { id: 'blind_defense', icon: 'shield-half-outline', title: 'Защита блайнда', desc: 'защитите свой блайнд', villainLabel: 'Позиция рейзера' },
-];
+const SCENARIO_META: Record<
+  ScenarioType,
+  { icon: IoniconName; title: string; desc: string; villainLabel: string }
+> = {
+  RFI: {
+    icon: 'hand-left-outline',
+    title: 'Все сфолдили до меня',
+    desc: 'опен-рейз или фолд',
+    villainLabel: '',
+  },
+  vs_RFI: {
+    icon: 'arrow-up-outline',
+    title: 'Против опен-рейза',
+    desc: '3-бет / колл / фолд',
+    villainLabel: 'Позиция рейзера',
+  },
+  vs_3bet: {
+    icon: 'trending-up-outline',
+    title: 'Я открылся и получил 3-бет',
+    desc: '4-бет / колл / фолд',
+    villainLabel: 'Позиция 3-беттера',
+  },
+  vs_4bet: {
+    icon: 'rocket-outline',
+    title: 'После моего 3-бета пришёл 4-бет',
+    desc: '5-бет / колл / фолд',
+    villainLabel: 'Позиция 4-беттера',
+  },
+  squeeze: {
+    icon: 'play-forward-outline',
+    title: 'Опен и колл передо мной',
+    desc: 'сквиз / колл / фолд',
+    villainLabel: 'Первоначальный рейзер',
+  },
+  blind_defense: {
+    icon: 'shield-half-outline',
+    title: 'Защита блайнда',
+    desc: '3-бет / колл / фолд',
+    villainLabel: 'Позиция рейзера',
+  },
+};
 
 function GlowCard({ children, active }: { children: React.ReactNode; active?: boolean }) {
   return (
     <View
       style={[
         styles.card,
-        active ? [{ borderColor: 'rgba(39,224,161,0.5)' }, glow(colors.primary, 12, 0.12)] : null,
+        active ? [{ borderColor: colors.primaryDim }, glow(colors.primary, 12, 0.12)] : null,
       ]}
     >
       {children}
@@ -49,13 +82,30 @@ function GlowCard({ children, active }: { children: React.ReactNode; active?: bo
   );
 }
 
-function MiniChip({ label, selected, onPress }: { label: string; selected?: boolean; onPress: () => void }) {
+function MiniChip({
+  label,
+  selected,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  selected?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected, disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={[
         styles.miniChip,
-        { backgroundColor: selected ? colors.primary : colors.surface, borderColor: selected ? colors.primary : colors.border },
+        {
+          backgroundColor: selected ? colors.primary : colors.surface,
+          borderColor: selected ? colors.primary : colors.border,
+          opacity: disabled ? 0.35 : 1,
+        },
       ]}
     >
       <AppText weight="semibold" variant="caption" color={selected ? colors.bg : colors.text}>
@@ -65,18 +115,20 @@ function MiniChip({ label, selected, onPress }: { label: string; selected?: bool
   );
 }
 
+function providerLabel(providerId: ProviderId): string {
+  return PROVIDERS.find((item) => item.id === providerId)?.label ?? providerId;
+}
+
 export default function TrainScreen() {
   const router = useRouter();
-  const presets = usePresets((s) => s.presets);
-  const addPreset = usePresets((s) => s.addPreset);
-  const removePreset = usePresets((s) => s.removePreset);
-  const start = useSession((s) => s.start);
-  const provider = useSettings((s) => s.provider);
-  const setProvider = useSettings((s) => s.setProvider);
-  const examMode = useSettings((s) => s.examMode);
-  const examMistakeCap = useSettings((s) => s.examMistakeCap);
-
-  const dataStacks = useMemo(() => new Set(allNodes(provider).map((n) => n.stackBB)), [provider]);
+  const presets = usePresets((state) => state.presets);
+  const addPreset = usePresets((state) => state.addPreset);
+  const removePreset = usePresets((state) => state.removePreset);
+  const start = useSession((state) => state.start);
+  const provider = useSettings((state) => state.provider);
+  const setProvider = useSettings((state) => state.setProvider);
+  const examMode = useSettings((state) => state.examMode);
+  const examMistakeCap = useSettings((state) => state.examMistakeCap);
 
   const [stackBB, setStackBB] = useState<number>(100);
   const [hero, setHero] = useState<Position | null>(null);
@@ -84,158 +136,278 @@ export default function TrainScreen() {
   const [villain, setVillain] = useState<Position | null>(null);
   const [mix, setMix] = useState(false);
   const [length, setLength] = useState<number>(15);
+  const [presetModalOpen, setPresetModalOpen] = useState(false);
+  const [presetName, setPresetName] = useState('');
 
-  const legal = useMemo(() => (hero ? legalScenarios(hero) : []), [hero]);
-  const legalIds = useMemo(() => new Set(legal.map((l) => l.scenario)), [legal]);
-  const villainOptions = useMemo(
-    () => legal.find((l) => l.scenario === scenario)?.villainPositions ?? [],
-    [legal, scenario],
+  const providerNodes = useMemo(() => allNodes(provider), [provider]);
+  const source = rangeSource(provider);
+  const dataStacks = useMemo(
+    () =>
+      new Set(providerNodes.filter((node) => node.format === FORMAT).map((node) => node.stackBB)),
+    [providerNodes],
   );
+  const availablePositions = useMemo(
+    () => availableSandboxPositions(providerNodes, FORMAT, stackBB),
+    [providerNodes, stackBB],
+  );
+  const scenarioOptions = useMemo(
+    () =>
+      hero ? sandboxScenarioAvailability(providerNodes, { format: FORMAT, stackBB, hero }) : [],
+    [providerNodes, stackBB, hero],
+  );
+  const selectedScenario = scenarioOptions.find((item) => item.scenario === scenario);
+  const villainOptions = selectedScenario?.legalVillainPositions ?? [];
+  const coverage = useMemo(
+    () => (hero ? sandboxCoverage(providerNodes, { format: FORMAT, stackBB, hero }) : null),
+    [providerNodes, stackBB, hero],
+  );
+  const selectedNodes = useMemo(() => {
+    if (!hero) return [];
+    return resolveSandboxNodes(providerNodes, {
+      format: FORMAT,
+      stackBB,
+      hero,
+      mode: mix ? 'mix' : 'single',
+      scenario: scenario ?? undefined,
+      villainPosition: villain ?? undefined,
+    });
+  }, [providerNodes, stackBB, hero, mix, scenario, villain]);
 
-  function collectNodes(): { nodes: RangeNode[]; missing: boolean } {
-    if (!hero) return { nodes: [], missing: true };
-    if (mix) {
-      const nodes: RangeNode[] = [];
-      for (const ls of legal) {
-        if (ls.villainPositions.length === 0) {
-          const n = getNode(provider, buildNodeId({ format: 'cash_6max', stackBB, hero, scenario: ls.scenario }));
-          if (n) nodes.push(n);
-        } else {
-          for (const vp of ls.villainPositions) {
-            const n = getNode(provider, buildNodeId({ format: 'cash_6max', stackBB, hero, scenario: ls.scenario, villainPosition: vp }));
-            if (n) nodes.push(n);
-          }
-        }
-      }
-      return { nodes, missing: nodes.length === 0 };
-    }
-    if (!scenario) return { nodes: [], missing: true };
-    const needsVillain = villainOptions.length > 0;
-    if (needsVillain && !villain) return { nodes: [], missing: true };
-    const n = getNode(provider,
-      buildNodeId({ format: 'cash_6max', stackBB, hero, scenario, villainPosition: needsVillain ? villain ?? undefined : undefined }),
-    );
-    return { nodes: n ? [n] : [], missing: !n };
+  const selectedNode = !mix ? selectedNodes[0] : undefined;
+  const canLaunch = selectedNodes.length > 0;
+  const selectionTitle = hero
+    ? mix
+      ? `${hero} · Микс всей позиции`
+      : scenario
+        ? spotTitle(hero, scenario, villain ?? undefined)
+        : `${hero} · выберите сценарий`
+    : 'Выберите позицию';
+  const completedSteps = canLaunch ? 3 : hero ? 2 : 1;
+
+  function resetSpot(): void {
+    setHero(null);
+    setScenario(null);
+    setVillain(null);
+    setMix(false);
   }
 
-  function launch() {
-    const { nodes, missing } = collectNodes();
-    if (missing || nodes.length === 0) {
-      Alert.alert('Скоро', 'Для этого спота пока нет диапазона. Выберите доступную комбинацию на 100 BB.');
+  function chooseProvider(next: ProviderId): void {
+    if (next === provider) return;
+    setProvider(next);
+    resetSpot();
+  }
+
+  function chooseStack(next: number): void {
+    if (next === stackBB || !dataStacks.has(next)) return;
+    setStackBB(next);
+    resetSpot();
+  }
+
+  function chooseScenario(next: ScenarioType): void {
+    const option = scenarioOptions.find((item) => item.scenario === next);
+    if (!option?.available) return;
+    setMix(false);
+    setScenario(next);
+    setVillain(
+      option.availableVillainPositions.length === 1 ? option.availableVillainPositions[0] : null,
+    );
+  }
+
+  function chooseMix(): void {
+    if (!coverage || coverage.available === 0) return;
+    setMix(true);
+    setScenario(null);
+    setVillain(null);
+  }
+
+  function launch(): void {
+    if (!hero || selectedNodes.length === 0) {
+      Alert.alert('Спот не готов', 'Выберите комбинацию, для которой в наборе есть данные.');
       return;
     }
-    const title = mix ? `${hero} · Микс всей позиции` : spotTitle(hero!, scenario!, villain ?? undefined);
-    start(nodes, length, { title, origin: 'sandbox', examMode, examMistakeCap, awardProgress: true });
+    start(selectedNodes, length, {
+      title: selectionTitle,
+      origin: 'sandbox',
+      examMode,
+      examMistakeCap,
+      awardProgress: true,
+    });
     router.push('/training');
   }
 
-  function saveCurrentPreset() {
-    if (!hero) return;
-    if (!mix && !scenario) return;
+  function openPresetModal(): void {
+    if (!canLaunch) return;
+    setPresetName(selectionTitle);
+    setPresetModalOpen(true);
+  }
+
+  function saveCurrentPreset(): void {
+    if (!hero || !canLaunch) return;
+    const name = presetName.trim();
+    if (!name) return;
     addPreset({
-      name: mix ? `${hero} · микс` : spotTitle(hero, scenario!, villain ?? undefined),
+      name,
       providerId: provider,
-      format: 'cash_6max',
+      format: FORMAT,
       stackBB,
       hero,
-      scenario: mix ? legal[0].scenario : scenario!,
-      villainPosition: villain ?? undefined,
+      scenario: mix ? undefined : (scenario ?? undefined),
+      villainPosition: mix ? undefined : (villain ?? undefined),
       mix,
       length,
     });
+    setPresetModalOpen(false);
+    setPresetName('');
+    Alert.alert('Пресет сохранён', `«${name}» появится в быстрых запусках.`);
   }
 
-  function launchPreset(p: Preset) {
-    const nodes: RangeNode[] = [];
-    if (p.mix) {
-      for (const ls of legalScenarios(p.hero)) {
-        if (ls.villainPositions.length === 0) {
-          const n = getNode(p.providerId, buildNodeId({ format: p.format, stackBB: p.stackBB, hero: p.hero, scenario: ls.scenario }));
-          if (n) nodes.push(n);
-        } else {
-          for (const vp of ls.villainPositions) {
-            const n = getNode(p.providerId, buildNodeId({ format: p.format, stackBB: p.stackBB, hero: p.hero, scenario: ls.scenario, villainPosition: vp }));
-            if (n) nodes.push(n);
-          }
-        }
-      }
-    } else {
-      const n = getNode(p.providerId, buildNodeId({ format: p.format, stackBB: p.stackBB, hero: p.hero, scenario: p.scenario, villainPosition: p.villainPosition }));
-      if (n) nodes.push(n);
-    }
+  function nodesForPreset(preset: Preset): RangeNode[] {
+    return resolveSandboxNodes(allNodes(preset.providerId), {
+      format: preset.format,
+      stackBB: preset.stackBB,
+      hero: preset.hero,
+      mode: preset.mix ? 'mix' : 'single',
+      scenario: preset.scenario,
+      villainPosition: preset.villainPosition,
+    });
+  }
+
+  function launchPreset(preset: Preset): void {
+    const nodes = nodesForPreset(preset);
     if (nodes.length === 0) {
-      Alert.alert('Скоро', 'Для этого пресета пока нет диапазона.');
+      Alert.alert(
+        'Пресет недоступен',
+        'В выбранном наборе больше нет данных для этого спота. Пресет можно удалить и собрать заново.',
+      );
       return;
     }
-    start(nodes, p.length, { title: p.name, origin: 'sandbox', examMode, examMistakeCap, awardProgress: true });
+    start(nodes, preset.length, {
+      title: preset.name,
+      origin: 'sandbox',
+      examMode,
+      examMistakeCap,
+      awardProgress: true,
+    });
     router.push('/training');
   }
 
-  const canLaunch = !!hero && (mix || !!scenario) && (mix || villainOptions.length === 0 || !!villain);
+  function confirmRemovePreset(preset: Preset): void {
+    Alert.alert('Удалить пресет?', `«${preset.name}» будет удалён.`, [
+      { text: 'Отмена', style: 'cancel' },
+      { text: 'Удалить', style: 'destructive', onPress: () => removePreset(preset.id) },
+    ]);
+  }
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <AppText variant="heading" weight="black" center>
-          Соберите свой спот
-        </AppText>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+        <View>
+          <AppText variant="heading" weight="black" center>
+            Соберите свой спот
+          </AppText>
+          <AppText variant="caption" color={colors.muted} center style={styles.headingHint}>
+            Только комбинации, реально присутствующие в выбранном наборе
+          </AppText>
+        </View>
 
-        {/* TABLE */}
-        <SectionLabel text="Стол" />
+        <View style={styles.stepper}>
+          <StepBadge number={1} label="Стол" state="done" />
+          <View style={styles.stepLine} />
+          <StepBadge number={2} label="Позиция" state={hero ? 'done' : 'current'} />
+          <View style={styles.stepLine} />
+          <StepBadge
+            number={3}
+            label="Спот"
+            state={completedSteps === 3 ? 'done' : hero ? 'current' : 'future'}
+          />
+        </View>
+
+        <SectionLabel text="1 · Стол и набор" />
         <GlowCard active>
           <View style={styles.segment}>
             <SegmentItem label="Кэш 6-max" selected onPress={() => {}} />
-            <SegmentItem label="MTT · скоро" disabled onPress={() => {}} />
+            <SegmentItem label="MTT · нет данных" disabled onPress={() => {}} />
           </View>
 
           <View style={styles.stackPill}>
-            {STACK_OPTIONS.map((s, i) => {
-              const hasData = dataStacks.has(s);
-              const sel = stackBB === s;
+            {STACK_OPTIONS.map((value) => {
+              const hasData = dataStacks.has(value);
               return (
-                <React.Fragment key={s}>
-                  {i > 0 ? <AppText color={colors.muted}>·</AppText> : null}
-                  <Pressable
-                    disabled={!hasData}
-                    onPress={() => hasData && setStackBB(s)}
-                    style={[styles.stackItem, sel ? styles.stackItemSel : null]}
-                  >
-                    <AppText weight={sel ? 'bold' : 'regular'} color={sel ? colors.text : colors.muted}>
-                      {s} BB{!hasData ? ' · скоро' : ''}
-                    </AppText>
-                  </Pressable>
-                </React.Fragment>
+                <MiniChip
+                  key={value}
+                  label={`${value} BB${hasData ? '' : ' · скоро'}`}
+                  selected={stackBB === value}
+                  disabled={!hasData}
+                  onPress={() => chooseStack(value)}
+                />
               );
             })}
           </View>
 
-          <AppText variant="caption" color={colors.muted}>
-            Набор диапазонов
+          <AppText variant="caption" color={colors.muted} weight="bold">
+            НАБОР ДИАПАЗОНОВ
           </AppText>
-          <View style={styles.rowWrap}>
-            {PROVIDERS.map((p) => (
-              <MiniChip key={p.id} label={p.label} selected={provider === p.id} onPress={() => setProvider(p.id)} />
-            ))}
+          <View style={styles.providerGrid}>
+            {PROVIDERS.map((item) => {
+              const active = provider === item.id;
+              const packNodes = allNodes(item.id);
+              const nodeCount = POSITIONS.reduce(
+                (total, position) =>
+                  total +
+                  sandboxNodesInScope(packNodes, {
+                    format: FORMAT,
+                    stackBB,
+                    hero: position,
+                  }).length,
+                0,
+              );
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  key={item.id}
+                  onPress={() => chooseProvider(item.id)}
+                  style={[styles.providerCard, active ? styles.providerCardActive : null]}
+                >
+                  <View style={styles.providerTitleRow}>
+                    <AppText weight="bold" color={active ? colors.primary : colors.text}>
+                      {item.label}
+                    </AppText>
+                    {active ? (
+                      <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                    ) : null}
+                  </View>
+                  <AppText variant="caption" color={colors.muted}>
+                    {nodeCount} спотов · MIT
+                  </AppText>
+                </Pressable>
+              );
+            })}
           </View>
-          <AppText variant="caption" color={colors.muted}>
-            Размер открытия: {rangeSource(provider).openSizeLabel} · Рейк: {rangeSource(provider).rakeLabel}
-          </AppText>
-          {!dataStacks.has(stackBB) ? (
-            <AppText variant="caption" color={colors.gold} style={{ marginTop: 6 }}>
-              Для {stackBB} BB данных пока нет — выберите 100 BB.
-            </AppText>
-          ) : null}
+
+          <View style={styles.sourceNote}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.gold} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <AppText variant="caption" weight="bold">
+                {source.title}
+              </AppText>
+              <AppText variant="caption" color={colors.muted}>
+                Open size: {source.openSizeLabel} · рейк: {source.rakeLabel}. Community-чарты, не
+                заявлены как точный solver output.
+              </AppText>
+            </View>
+          </View>
         </GlowCard>
 
-        {/* POSITION */}
-        <SectionLabel text="Ваша позиция" />
-        <GlowCard active={!!hero}>
+        <SectionLabel text="2 · Ваша позиция" />
+        <GlowCard active={hero !== null}>
           <Table
             mode="picker"
             hero={hero ?? 'BTN'}
             selected={hero ?? undefined}
-            onSelectSeat={(p) => {
-              setHero(p);
+            availablePositions={availablePositions}
+            onSelectSeat={(position) => {
+              setHero(position);
               setScenario(null);
               setVillain(null);
               setMix(false);
@@ -244,99 +416,289 @@ export default function TrainScreen() {
             height={190}
           />
           <AppText variant="caption" color={colors.muted} center>
-            {hero ? `Герой: ${hero}` : 'Нажмите на место, чтобы выбрать позицию'}
+            {hero
+              ? `Герой: ${hero} · доступно ${coverage?.available ?? 0} спотов`
+              : 'Нажмите доступное место. Замок означает, что в паке нет данных.'}
           </AppText>
         </GlowCard>
 
-        {/* SCENARIO */}
         {hero ? (
           <>
-            <SectionLabel text="Сценарий" />
-            <GlowCard active={!!scenario || mix}>
-              {SCENARIO_ROWS.map((row) => {
-                const enabled = legalIds.has(row.id);
-                const sel = !mix && scenario === row.id;
+            <SectionLabel text="3 · Сценарий" />
+            <GlowCard active={canLaunch}>
+              {scenarioOptions.map((option) => {
+                const meta = SCENARIO_META[option.scenario];
+                const selected = !mix && scenario === option.scenario;
                 return (
-                  <View key={row.id}>
+                  <View key={option.scenario}>
                     <Pressable
-                      disabled={!enabled}
-                      onPress={() => {
-                        setMix(false);
-                        setScenario(row.id);
-                        setVillain(null);
-                      }}
-                      style={[styles.scenarioRow, sel ? styles.scenarioRowSel : null, { opacity: enabled ? 1 : 0.35 }]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${meta.title}${option.available ? '' : ', нет данных'}`}
+                      accessibilityState={{ selected, disabled: !option.available }}
+                      disabled={!option.available}
+                      onPress={() => chooseScenario(option.scenario)}
+                      style={[
+                        styles.scenarioRow,
+                        selected ? styles.scenarioRowSelected : null,
+                        !option.available ? styles.disabled : null,
+                      ]}
                     >
-                      <Ionicons name={row.icon} size={20} color={sel ? colors.primary : colors.muted} />
-                      <View style={{ flex: 1 }}>
-                        <AppText weight={sel ? 'bold' : 'semibold'} color={sel ? colors.text : colors.text}>
-                          {row.title}
-                          <AppText color={colors.muted}> — {row.desc}</AppText>
+                      <Ionicons
+                        name={meta.icon}
+                        size={21}
+                        color={selected ? colors.primary : colors.muted}
+                      />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <AppText weight={selected ? 'bold' : 'semibold'}>{meta.title}</AppText>
+                        <AppText variant="caption" color={colors.muted}>
+                          {meta.desc} · {option.availableNodeCount}/{option.legalNodeCount} в наборе
                         </AppText>
                       </View>
-                      {!enabled ? <Ionicons name="lock-closed" size={13} color={colors.muted} /> : null}
+                      {option.available ? (
+                        <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+                      ) : (
+                        <Ionicons name="lock-closed" size={14} color={colors.muted} />
+                      )}
                     </Pressable>
 
-                    {sel && villainOptions.length > 0 ? (
+                    {selected && villainOptions.length > 0 ? (
                       <View style={styles.villainRow}>
-                        <AppText variant="caption" color={colors.muted}>
-                          {row.villainLabel}:
+                        <AppText variant="caption" color={colors.muted} weight="bold">
+                          {meta.villainLabel.toUpperCase()}
                         </AppText>
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                          {villainOptions.map((vp) => (
-                            <MiniChip key={vp} label={vp} selected={villain === vp} onPress={() => setVillain(vp)} />
-                          ))}
+                        <View style={styles.rowWrap}>
+                          {villainOptions.map((position) => {
+                            const available = option.availableVillainPositions.includes(position);
+                            return (
+                              <MiniChip
+                                key={position}
+                                label={`${position}${available ? '' : ' · нет данных'}`}
+                                selected={villain === position}
+                                disabled={!available}
+                                onPress={() => setVillain(position)}
+                              />
+                            );
+                          })}
                         </View>
                       </View>
                     ) : null}
                   </View>
                 );
               })}
+
+              <View style={styles.mixDivider} />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Микс всей позиции"
+                accessibilityState={{ selected: mix, disabled: (coverage?.available ?? 0) === 0 }}
+                disabled={(coverage?.available ?? 0) === 0}
+                onPress={chooseMix}
+                style={[styles.mixCard, mix ? styles.mixCardSelected : null]}
+              >
+                <View style={styles.mixIcon}>
+                  <Ionicons name="shuffle" size={20} color={mix ? colors.bg : colors.primary} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <AppText weight="bold">Микс всей позиции</AppText>
+                  <AppText variant="caption" color={colors.muted}>
+                    Все {coverage?.available ?? 0} доступных спотов; покрытие{' '}
+                    {coverage?.available ?? 0}/{coverage?.legal ?? 0}
+                  </AppText>
+                </View>
+                {mix ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} /> : null}
+              </Pressable>
             </GlowCard>
 
-            {/* DRILL */}
-            <SectionLabel text="Тренировка" />
+            <SectionLabel text="Параметры тренировки" />
             <GlowCard>
-              <View style={styles.rowWrap}>
-                <MiniChip label="Один спот" selected={!mix} onPress={() => setMix(false)} />
-                <MiniChip label="Микс всей позиции" selected={mix} onPress={() => setMix(true)} />
+              <View style={styles.optionHeader}>
+                <AppText weight="bold">Количество решений</AppText>
+                <AppText variant="caption" color={colors.muted}>
+                  примерно {Math.max(2, Math.round(length * 0.22))}–
+                  {Math.max(4, Math.round(length * 0.4))} мин
+                </AppText>
               </View>
-              <View style={[styles.rowWrap, { marginTop: spacing.sm }]}>
-                {LENGTHS.map((l) => (
-                  <MiniChip key={l} label={`${l} рук`} selected={length === l} onPress={() => setLength(l)} />
+              <View style={styles.rowWrap}>
+                {LENGTHS.map((value) => (
+                  <MiniChip
+                    key={value}
+                    label={`${value} рук`}
+                    selected={length === value}
+                    onPress={() => setLength(value)}
+                  />
                 ))}
               </View>
+              {examMode ? (
+                <View style={styles.examNote}>
+                  <Ionicons name="warning-outline" size={17} color={colors.danger} />
+                  <AppText variant="caption" color={colors.danger} style={{ flex: 1 }}>
+                    Экзамен включён: сессия завершится после {examMistakeCap} ошибок.
+                  </AppText>
+                </View>
+              ) : null}
             </GlowCard>
+
+            {canLaunch ? (
+              <View style={styles.readyCard}>
+                <View style={styles.readyHeader}>
+                  <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <AppText weight="bold">{selectionTitle}</AppText>
+                    <AppText variant="caption" color={colors.muted}>
+                      {providerLabel(provider)} · {stackBB} BB · {selectedNodes.length}{' '}
+                      {selectedNodes.length === 1 ? 'спот' : 'спотов'}
+                    </AppText>
+                  </View>
+                </View>
+                {selectedNode ? (
+                  <AppText variant="caption" color={colors.muted}>
+                    Действия: {selectedNode.actions.map(actionLabel).join(' · ')}
+                  </AppText>
+                ) : null}
+              </View>
+            ) : (
+              <View style={styles.pendingCard}>
+                <Ionicons name="arrow-up-circle-outline" size={20} color={colors.gold} />
+                <AppText variant="caption" color={colors.gold} style={{ flex: 1 }}>
+                  Выберите доступный сценарий и позицию оппонента либо включите микс.
+                </AppText>
+              </View>
+            )}
           </>
         ) : null}
 
         {presets.length > 0 ? (
           <>
-            <SectionLabel text="Сохранённые пресеты" />
-            {presets.map((p) => (
-              <View key={p.id} style={styles.presetRow}>
-                <Pressable style={{ flex: 1 }} onPress={() => launchPreset(p)}>
-                  <AppText weight="bold">{p.name}</AppText>
-                  <AppText variant="caption" color={colors.muted}>
-                    {p.stackBB} BB · {p.mix ? 'микс' : 'один спот'} · {p.length} рук
-                  </AppText>
-                </Pressable>
-                <Pressable onPress={() => removePreset(p.id)} style={styles.delBtn}>
-                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                </Pressable>
-              </View>
-            ))}
+            <SectionLabel text="Быстрый запуск" />
+            <View style={styles.presetList}>
+              {presets.map((preset) => {
+                const availableNodes = nodesForPreset(preset);
+                const available = availableNodes.length > 0;
+                return (
+                  <View
+                    key={preset.id}
+                    style={[styles.presetRow, !available ? styles.disabled : null]}
+                  >
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={!available}
+                      style={styles.presetMain}
+                      onPress={() => launchPreset(preset)}
+                    >
+                      <View style={styles.presetIcon}>
+                        <Ionicons
+                          name={preset.mix ? 'shuffle' : 'flash'}
+                          size={18}
+                          color={colors.primary}
+                        />
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <AppText weight="bold" numberOfLines={1}>
+                          {preset.name}
+                        </AppText>
+                        <AppText variant="caption" color={colors.muted}>
+                          {providerLabel(preset.providerId)} · {preset.stackBB} BB · {preset.length}{' '}
+                          рук
+                        </AppText>
+                      </View>
+                      <Ionicons
+                        name="play-circle"
+                        size={25}
+                        color={available ? colors.primary : colors.muted}
+                      />
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Удалить пресет ${preset.name}`}
+                      onPress={() => confirmRemovePreset(preset)}
+                      style={styles.deleteButton}
+                    >
+                      <Ionicons name="trash-outline" size={17} color={colors.danger} />
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
           </>
         ) : null}
 
-        <View style={{ height: 100 }} />
+        <View style={styles.scrollSpacer} />
       </ScrollView>
 
-      {/* sticky launch */}
       <View style={styles.footer}>
-        <Button label="Сохранить" variant="surface" onPress={saveCurrentPreset} style={{ flex: 1 }} />
-        <Button label="Начать" onPress={launch} disabled={!canLaunch} style={{ flex: 1.6 }} />
+        <View style={styles.footerInfo}>
+          <AppText
+            variant="caption"
+            color={canLaunch ? colors.primary : colors.muted}
+            weight="bold"
+            numberOfLines={1}
+          >
+            {canLaunch ? selectionTitle : 'Соберите спот'}
+          </AppText>
+          <AppText variant="caption" color={colors.muted}>
+            {canLaunch ? `${length} решений · ${selectedNodes.length} узл.` : 'Шаги 1–3'}
+          </AppText>
+        </View>
+        <Button
+          label="Сохранить"
+          variant="surface"
+          onPress={openPresetModal}
+          disabled={!canLaunch}
+          style={styles.saveButton}
+        />
+        <Button label="Начать" onPress={launch} disabled={!canLaunch} style={styles.startButton} />
       </View>
+
+      <Modal
+        visible={presetModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPresetModalOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalTitleRow}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <AppText variant="title" weight="black">
+                  Название пресета
+                </AppText>
+                <AppText variant="caption" color={colors.muted}>
+                  Сохранится вместе с паком, стеком и длиной.
+                </AppText>
+              </View>
+              <Pressable onPress={() => setPresetModalOpen(false)} style={styles.closeButton}>
+                <Ionicons name="close" size={22} color={colors.muted} />
+              </Pressable>
+            </View>
+            <TextInput
+              accessibilityLabel="Название пресета"
+              autoFocus
+              maxLength={48}
+              value={presetName}
+              onChangeText={setPresetName}
+              placeholder="Например, BTN против CO"
+              placeholderTextColor={colors.muted}
+              selectionColor={colors.primary}
+              style={styles.presetInput}
+              onSubmitEditing={saveCurrentPreset}
+            />
+            <View style={styles.modalActions}>
+              <Button
+                label="Отмена"
+                variant="ghost"
+                onPress={() => setPresetModalOpen(false)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                label="Сохранить"
+                onPress={saveCurrentPreset}
+                disabled={!presetName.trim()}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -349,12 +711,62 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
-function SegmentItem({ label, selected, disabled, onPress }: { label: string; selected?: boolean; disabled?: boolean; onPress: () => void }) {
+function StepBadge({
+  number,
+  label,
+  state,
+}: {
+  number: number;
+  label: string;
+  state: 'done' | 'current' | 'future';
+}) {
+  return (
+    <View style={styles.stepItem}>
+      <View
+        style={[
+          styles.stepCircle,
+          state === 'done' ? styles.stepDone : state === 'current' ? styles.stepCurrent : null,
+        ]}
+      >
+        {state === 'done' ? (
+          <Ionicons name="checkmark" size={14} color={colors.bg} />
+        ) : (
+          <AppText
+            variant="caption"
+            weight="bold"
+            color={state === 'current' ? colors.primary : colors.muted}
+          >
+            {number}
+          </AppText>
+        )}
+      </View>
+      <AppText variant="caption" color={state === 'future' ? colors.muted : colors.text}>
+        {label}
+      </AppText>
+    </View>
+  );
+}
+
+function SegmentItem({
+  label,
+  selected,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  selected?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable
       disabled={disabled}
       onPress={onPress}
-      style={[styles.segmentItem, { backgroundColor: selected ? colors.primary : 'transparent', opacity: disabled ? 0.4 : 1 }]}
+      style={[
+        styles.segmentItem,
+        selected ? styles.segmentItemSelected : null,
+        disabled ? styles.disabled : null,
+      ]}
     >
       <AppText weight="bold" color={selected ? colors.bg : colors.text}>
         {label}
@@ -365,24 +777,92 @@ function SegmentItem({ label, selected, disabled, onPress }: { label: string; se
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
+  content: {
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
+    padding: spacing.lg,
+    gap: spacing.sm,
+    paddingBottom: spacing.xxl,
+  },
+  headingHint: { marginTop: spacing.xs },
   sectionLabel: { marginTop: spacing.md, letterSpacing: 1 },
-  card: { backgroundColor: colors.surface, borderRadius: radius.card, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, gap: spacing.md },
-  segment: { flexDirection: 'row', backgroundColor: colors.bg, borderRadius: radius.pill, padding: 4 },
-  segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: radius.pill },
-  stackPill: {
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.md,
+  },
+  stepper: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    marginVertical: spacing.sm,
+  },
+  stepItem: { alignItems: 'center', gap: spacing.xs, minWidth: 54 },
+  stepCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepDone: { backgroundColor: colors.primary, borderColor: colors.primary },
+  stepCurrent: { borderColor: colors.primary },
+  stepLine: { width: 44, height: 1, backgroundColor: colors.border, marginBottom: 18 },
+  segment: {
+    width: '100%',
+    flexDirection: 'row',
     backgroundColor: colors.bg,
     borderRadius: radius.pill,
+    padding: 4,
+  },
+  segmentItem: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: spacing.xs,
+    borderRadius: radius.pill,
+  },
+  segmentItemSelected: { backgroundColor: colors.primary },
+  stackPill: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  miniChip: {
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  stackItem: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
-  stackItemSel: { borderWidth: 1.5, borderColor: colors.primary },
-  providerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  miniChip: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
+  providerGrid: { width: '100%', flexDirection: 'row', gap: spacing.sm },
+  providerCard: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.button,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  providerCardActive: { borderColor: colors.primaryDim, backgroundColor: colors.bg },
+  providerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.xs,
+  },
+  sourceNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: colors.bg,
+    borderRadius: radius.button,
+    padding: spacing.md,
+  },
   scenarioRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -393,26 +873,130 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  scenarioRowSel: { borderColor: 'rgba(39,224,161,0.6)', backgroundColor: 'rgba(39,224,161,0.06)' },
-  villainRow: { gap: 6, paddingHorizontal: spacing.sm, paddingBottom: spacing.md },
+  scenarioRowSelected: { borderColor: colors.primaryDim, backgroundColor: colors.bg },
+  villainRow: { gap: spacing.sm, paddingHorizontal: spacing.sm, paddingBottom: spacing.md },
   rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  presetRow: {
+  mixDivider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.xs },
+  mixCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  mixCardSelected: { borderColor: colors.primary, backgroundColor: colors.bg },
+  mixIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  optionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  examNote: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+  },
+  readyCard: {
     backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.primaryDim,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  readyHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  pendingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: radius.button,
     padding: spacing.md,
-    marginTop: spacing.sm,
   },
-  delBtn: { padding: spacing.sm },
-  footer: {
+  presetList: { gap: spacing.sm },
+  presetRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  presetMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
-    padding: spacing.lg,
+    padding: spacing.md,
+  },
+  presetIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteButton: { padding: spacing.md, borderLeftWidth: 1, borderLeftColor: colors.border },
+  disabled: { opacity: 0.35 },
+  scrollSpacer: { height: 110 },
+  footer: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: spacing.xl,
     backgroundColor: colors.bg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
+  footerInfo: { flex: 1.15, minWidth: 0 },
+  saveButton: { flex: 0.9, paddingHorizontal: spacing.sm },
+  startButton: { flex: 1, paddingHorizontal: spacing.sm },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 430,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    gap: spacing.lg,
+  },
+  modalTitleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  closeButton: { padding: spacing.xs },
+  presetInput: {
+    backgroundColor: colors.bg,
+    color: colors.text,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.primaryDim,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    fontSize: 16,
+  },
+  modalActions: { flexDirection: 'row', gap: spacing.sm },
 });

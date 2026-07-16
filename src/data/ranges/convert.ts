@@ -18,7 +18,12 @@ import type {
   RangeNode,
   ScenarioType,
 } from '../../types';
-import { charts as pekarstas, type RawAction, type RawCell, type RawChart } from './source/pekarstas';
+import {
+  charts as pekarstas,
+  type RawAction,
+  type RawCell,
+  type RawChart,
+} from './source/pekarstas';
 import { charts as greenline } from './source/greenline';
 import { RANGE_SOURCES } from './sources';
 
@@ -29,8 +34,16 @@ export interface ProviderInfo {
 }
 
 export const PROVIDERS: ProviderInfo[] = [
-  { id: 'pekarstas', label: 'Pekarstas (GG)', description: 'Community-чарты MIT; не заявлены как точный solver output.' },
-  { id: 'greenline', label: 'Greenline', description: 'Community-чарты MIT; не заявлены как точный solver output.' },
+  {
+    id: 'pekarstas',
+    label: 'Pekarstas (GG)',
+    description: 'Community-чарты MIT; не заявлены как точный solver output.',
+  },
+  {
+    id: 'greenline',
+    label: 'Greenline',
+    description: 'Community-чарты MIT; не заявлены как точный solver output.',
+  },
 ];
 
 // Providers backed by raw "chart" files (pekarstas/greenline) vs the prebuilt
@@ -40,11 +53,6 @@ type ChartProviderId = 'pekarstas' | 'greenline';
 const PROVIDER_CHARTS: Record<ChartProviderId, Record<string, RawChart>> = {
   pekarstas,
   greenline,
-};
-
-const PROVIDER_ATTRIBUTION: Record<ChartProviderId, string> = {
-  pekarstas: 'Real data: pekarstas (GGPoker) pack via github.com/AHTOOOXA/poker-charts (MIT).',
-  greenline: 'Real data: greenline pack via github.com/AHTOOOXA/poker-charts (MIT).',
 };
 
 // Their positions use "MP" where we use "HJ"; everything else matches.
@@ -184,7 +192,7 @@ function strategyFromCell(cell: RawCell, scenario: ScenarioType, aggressive: Act
 }
 
 /** Build all RangeNodes for one source chart key. */
-function nodesFromChart(providerId: ProviderId, key: string, chart: RawChart, attribution: string): RangeNode[] {
+function nodesFromChart(providerId: ProviderId, key: string, chart: RawChart): RangeNode[] {
   const parsed = parseKey(key);
   if (!parsed) return [];
   const scenarios = targetScenarios(parsed.hero, parsed.src);
@@ -202,7 +210,13 @@ function nodesFromChart(providerId: ProviderId, key: string, chart: RawChart, at
     }
     const villainPosition = scenario === 'RFI' ? undefined : parsed.villain;
     out.push({
-      id: buildNodeId({ format: 'cash_6max', stackBB: 100, hero: parsed.hero, scenario, villainPosition }),
+      id: buildNodeId({
+        format: 'cash_6max',
+        stackBB: 100,
+        hero: parsed.hero,
+        scenario,
+        villainPosition,
+      }),
       providerId,
       sourceId: providerId,
       format: 'cash_6max',
@@ -213,7 +227,8 @@ function nodesFromChart(providerId: ProviderId, key: string, chart: RawChart, at
       actions,
       hands,
       sizing: { effectiveStackBB: 100 },
-      note: attribution,
+      // No coaching note is fabricated here. Feedback falls back to a generic
+      // frequency-based explanation until an imported source provides notes.
     });
   }
   return out;
@@ -222,11 +237,10 @@ function nodesFromChart(providerId: ProviderId, key: string, chart: RawChart, at
 /** Convert every vendored chart for a provider into RangeNodes. */
 export function buildRealNodes(provider: ProviderId): RangeNode[] {
   const charts = PROVIDER_CHARTS[provider as ChartProviderId];
-  const attribution = PROVIDER_ATTRIBUTION[provider as ChartProviderId];
   if (!RANGE_SOURCES[provider].publicDistributionAllowed) return [];
   const out: RangeNode[] = [];
   for (const [key, chart] of Object.entries(charts)) {
-    out.push(...nodesFromChart(provider, key, chart, attribution));
+    out.push(...nodesFromChart(provider, key, chart));
   }
   return out;
 }

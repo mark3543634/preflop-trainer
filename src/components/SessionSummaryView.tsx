@@ -6,7 +6,7 @@ import type { SessionSummary } from '../types';
 import { colors, spacing, verdictColor } from '../theme';
 import { AppText, Button, Card } from './primitives';
 import { StatTile } from './StatTile';
-import { actionLabel, spotTitle } from './labels';
+import { actionLabel, spotTitle, verdictLabel } from './labels';
 import { getNode } from '../data/ranges';
 
 export function SessionSummaryView({
@@ -15,6 +15,7 @@ export function SessionSummaryView({
   subtitle,
   xpEarned,
   onReplay,
+  onReviewMistakes,
   onDone,
   doneLabel = 'Готово',
 }: {
@@ -23,6 +24,7 @@ export function SessionSummaryView({
   subtitle?: string;
   xpEarned?: number;
   onReplay?: () => void;
+  onReviewMistakes?: () => void;
   onDone: () => void;
   doneLabel?: string;
 }) {
@@ -51,8 +53,17 @@ export function SessionSummaryView({
 
       <View style={styles.tiles}>
         <StatTile label="Руки" value={String(summary.handsPlayed)} />
-        <StatTile label="Средняя потеря EV" value={summary.evHands === 0 ? '—' : summary.avgEvLoss.toFixed(2)} color={colors.gold} sub={summary.evHands === 0 ? 'Нет EV в источнике' : 'bb'} />
-        <StatTile label="Ошибки" value={String(summary.mistakes.length)} color={summary.mistakes.length ? colors.danger : colors.primary} />
+        <StatTile
+          label="Средняя потеря EV"
+          value={summary.evHands === 0 ? '—' : summary.avgEvLoss.toFixed(2)}
+          color={colors.gold}
+          sub={summary.evHands === 0 ? 'Нет EV в источнике' : 'bb'}
+        />
+        <StatTile
+          label="Ошибки"
+          value={String(summary.mistakes.length)}
+          color={summary.mistakes.length ? colors.danger : colors.primary}
+        />
       </View>
 
       {xpEarned !== undefined ? (
@@ -75,17 +86,16 @@ export function SessionSummaryView({
                 <View style={{ flex: 1 }}>
                   <AppText weight="bold">{m.hand}</AppText>
                   <AppText variant="caption" color={colors.muted}>
-                    {node
-                      ? spotTitle(node.hero, node.scenario, node.villainPosition)
-                      : m.nodeId}
+                    {node ? spotTitle(node.hero, node.scenario, node.villainPosition) : m.nodeId}
                   </AppText>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <AppText weight="bold" color={verdictColor[m.grade.verdict]}>
-                    {m.grade.verdict}
+                    {verdictLabel(m.grade.verdict)}
                   </AppText>
                   <AppText variant="caption" color={colors.muted}>
-                    вы: {actionLabel(m.chosen)} → лучше: {m.grade.bestActions.map(actionLabel).join('/')}
+                    вы: {actionLabel(m.chosen)} → лучше:{' '}
+                    {m.grade.bestActions.map(actionLabel).join('/')}
                   </AppText>
                 </View>
               </Card>
@@ -99,7 +109,17 @@ export function SessionSummaryView({
       )}
 
       <View style={styles.actions}>
-        {onReplay ? <Button label="Повторить" variant="surface" onPress={onReplay} style={{ flex: 1 }} /> : null}
+        {onReviewMistakes && summary.mistakes.length > 0 ? (
+          <Button
+            label="Разобрать ошибки"
+            variant="surface"
+            onPress={onReviewMistakes}
+            style={{ flex: 1.4 }}
+          />
+        ) : null}
+        {onReplay ? (
+          <Button label="Повторить" variant="surface" onPress={onReplay} style={{ flex: 1 }} />
+        ) : null}
         <Button label={doneLabel} onPress={onDone} style={{ flex: 1 }} />
       </View>
     </ScrollView>

@@ -39,6 +39,7 @@ interface TableProps {
   hero: Position;
   selected?: Position; // picker: highlighted seat
   onSelectSeat?: (p: Position) => void; // picker
+  availablePositions?: readonly Position[]; // picker: seats backed by shipped data
   villainPosition?: Position; // play
   villainBadge?: string; // play, e.g. "RAISE"
   potLabel?: string; // play
@@ -52,6 +53,7 @@ export function Table({
   hero,
   selected,
   onSelectSeat,
+  availablePositions,
   villainPosition,
   villainBadge,
   potLabel,
@@ -81,17 +83,26 @@ export function Table({
 
         if (mode === 'picker') {
           const active = isSelected;
+          const available = availablePositions === undefined || availablePositions.includes(pos);
           return (
             <Pressable
               key={pos}
-              onPress={() => onSelectSeat?.(pos)}
+              accessibilityRole="button"
+              accessibilityLabel={`Позиция ${pos}${available ? '' : ', нет данных'}`}
+              accessibilityState={{ selected: active, disabled: !available }}
+              disabled={!available}
+              onPress={() => available && onSelectSeat?.(pos)}
               style={[
                 styles.pickerSeat,
                 { left, top },
                 active ? [styles.pickerSeatActive, glow(colors.primary, 10)] : null,
+                !available ? styles.pickerSeatDisabled : null,
               ]}
             >
-              <Text style={[styles.pickerLabel, { color: active ? colors.bg : colors.muted }]}>{pos}</Text>
+              <Text style={[styles.pickerLabel, { color: active ? colors.bg : colors.muted }]}>
+                {pos}
+              </Text>
+              {!available ? <Ionicons name="lock-closed" size={9} color={colors.muted} /> : null}
             </Pressable>
           );
         }
@@ -151,7 +162,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1C302B',
   },
-  pot: { position: 'absolute', alignSelf: 'center', top: '40%', left: 0, right: 0, alignItems: 'center' },
+  pot: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: '40%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
   potText: {
     color: colors.text,
     fontWeight: fontWeight.bold,
@@ -175,6 +193,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pickerSeatActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  pickerSeatDisabled: { opacity: 0.32 },
   pickerLabel: { fontWeight: fontWeight.bold, fontSize: 14 },
   // play
   player: { position: 'absolute', width: 60, alignItems: 'center' },

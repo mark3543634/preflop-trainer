@@ -13,7 +13,7 @@ export interface Preset {
   format: GameFormat;
   stackBB: number;
   hero: Position;
-  scenario: ScenarioType;
+  scenario?: ScenarioType; // undefined for whole-position mix presets
   villainPosition?: Position;
   mix: boolean; // false = single node, true = whole-position mix
   length: number; // drill length

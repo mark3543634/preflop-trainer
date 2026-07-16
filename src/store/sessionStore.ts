@@ -68,7 +68,6 @@ export const useSession = create<SessionStoreState>((set, get) => ({
 
   start: (nodes, length, meta) => {
     const plan = planSession(nodes, length);
-    set({ lastNodes: nodes, lastLength: length, lastMeta: meta });
     get().startWithPlan(nodes, plan, meta);
   },
 
@@ -85,6 +84,9 @@ export const useSession = create<SessionStoreState>((set, get) => ({
       summary: null,
       examMistakes: 0,
       finishReason: null,
+      lastNodes: nodes,
+      lastLength: plan.length,
+      lastMeta: meta,
     });
   },
 
