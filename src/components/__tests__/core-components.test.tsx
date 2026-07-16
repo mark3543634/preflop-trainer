@@ -1,5 +1,8 @@
 import { act, fireEvent, render } from '@testing-library/react-native';
 import TrainScreen from '../../../app/(tabs)/train';
+import LearnScreen from '../../../app/(tabs)/index';
+import ProfileScreen from '../../../app/(tabs)/profile';
+import StatsScreen from '../../../app/(tabs)/stats';
 import { getNode } from '../../data/ranges';
 import { useSession } from '../../store/sessionStore';
 import type { DecisionResult } from '../../types';
@@ -22,6 +25,12 @@ describe('основные компоненты MVP', () => {
     expect(view.getByText('Соберите свой спот')).toBeTruthy();
     expect(view.getByText('40 BB · скоро')).toBeTruthy();
     expect(view.getByText('MTT · скоро')).toBeTruthy();
+  });
+
+  it('рендерит Learn, Stats и Profile без циклических Zustand-селекторов', () => {
+    expect(render(<LearnScreen />).getByText('Юнит 0 · Основы')).toBeTruthy();
+    expect(render(<StatsScreen />).getByText('Главные зоны повторения')).toBeTruthy();
+    expect(render(<ProfileScreen />).getByText('Настройки')).toBeTruthy();
   });
 
   it('показывает заблокированное состояние узла пути', () => {

@@ -10,10 +10,11 @@ import { PROVIDERS } from '../../src/data/ranges';
 import { AppText, Button, Card } from '../../src/components/primitives';
 import { StatTile } from '../../src/components/StatTile';
 import { colors, radius, spacing } from '../../src/theme';
+import { levelFromXp } from '../../src/engine/progression';
 
 export default function ProfileScreen() {
   const xp = useProgress((s) => s.xp);
-  const level = useProgress((s) => s.level());
+  const level = levelFromXp(xp);
   const currentStreak = useProgress((s) => s.currentStreak);
   const globalScore = useStats((s) => s.globalGtoScore());
 

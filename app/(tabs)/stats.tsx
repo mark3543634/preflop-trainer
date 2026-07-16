@@ -1,4 +1,5 @@
 // Stats tab: GTO score + trend, totals, ranked biggest-leak cards, range viewer.
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,7 +7,7 @@ import { useStats } from '../../src/store/statsStore';
 import { useSession } from '../../src/store/sessionStore';
 import { useSettings } from '../../src/store/settingsStore';
 import { getNode, allNodes, PROVIDERS } from '../../src/data/ranges';
-import { accuracy, type NodeStat } from '../../src/engine/leaks';
+import { accuracy, sortLeaks, type NodeStat } from '../../src/engine/leaks';
 import { AppText, Button, Card } from '../../src/components/primitives';
 import { StatTile } from '../../src/components/StatTile';
 import { RangeHeatmap } from '../../src/components/RangeHeatmap';
@@ -18,7 +19,8 @@ export default function StatsScreen() {
   const globalScore = useStats((s) => s.globalGtoScore());
   const totalDecisions = useStats((s) => s.totalDecisions);
   const gtoHistory = useStats((s) => s.gtoHistory);
-  const allLeaks = useStats((s) => s.leaksSorted());
+  const perNode = useStats((s) => s.perNode);
+  const allLeaks = useMemo(() => sortLeaks(Object.values(perNode)), [perNode]);
   const start = useSession((s) => s.start);
   const provider = useSettings((s) => s.provider);
   const providerLabel = PROVIDERS.find((p) => p.id === provider)?.label ?? provider;

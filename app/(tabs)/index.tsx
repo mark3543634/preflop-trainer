@@ -10,13 +10,14 @@ import { useStats } from '../../src/store/statsStore';
 import { useReview } from '../../src/store/reviewStore';
 import { useSettings } from '../../src/store/settingsStore';
 import { PROVIDERS } from '../../src/data/ranges';
+import { levelFromXp } from '../../src/engine/progression';
 
 export default function LearnScreen() {
   const router = useRouter();
   const lessons = useProgress((s) => s.lessons);
   const currentStreak = useProgress((s) => s.currentStreak);
   const xp = useProgress((s) => s.xp);
-  const level = useProgress((s) => s.level());
+  const level = levelFromXp(xp);
   const globalScore = useStats((s) => s.globalGtoScore());
   const dueCount = useReview((s) => s.dueCount());
   const provider = useSettings((s) => s.provider);
