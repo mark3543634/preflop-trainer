@@ -8,6 +8,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { POSITIONS, type Position } from '../types';
 import { avatarPalette, colors, fontWeight, glow, radius } from '../theme';
+import type { TableActionBadges, TableActionTone } from './tableStory';
 
 // Seat coordinates as fractions of the table box, clockwise from bottom-center.
 const SEAT_COORDS: { x: number; y: number }[] = [
@@ -42,6 +43,7 @@ interface TableProps {
   availablePositions?: readonly Position[]; // picker: seats backed by shipped data
   villainPosition?: Position; // play
   villainBadge?: string; // play, e.g. "RAISE"
+  actionBadges?: TableActionBadges; // play: visible action history by seat
   potLabel?: string; // play
   stackBB?: number; // play
   width?: number;
@@ -56,6 +58,7 @@ export function Table({
   availablePositions,
   villainPosition,
   villainBadge,
+  actionBadges,
   potLabel,
   stackBB,
   width = 320,
@@ -77,6 +80,11 @@ export function Table({
         const coord = SEAT_COORDS[seat];
         const isHero = pos === hero;
         const isVillain = mode === 'play' && pos === villainPosition;
+        const actionBadge =
+          actionBadges?.[pos] ??
+          (isVillain && villainBadge
+            ? { label: villainBadge, tone: 'aggressive' as const }
+            : undefined);
         const isSelected = mode === 'picker' && pos === selected;
         const left = coord.x * width - 30;
         const top = coord.y * height - 24;
@@ -109,11 +117,16 @@ export function Table({
 
         // play mode
         const ring = isHero ? colors.primary : isVillain ? colors.gold : colors.border;
-        const dim = !isHero && !isVillain;
+        const dim = !isHero && !isVillain && actionBadge?.tone !== 'aggressive';
         const tint = avatarPalette[POSITIONS.indexOf(pos) % avatarPalette.length];
         return (
-          <View key={pos} style={[styles.player, { left, top, opacity: dim ? 0.45 : 1 }]}>
-            <View style={[styles.avatar, { borderColor: ring, backgroundColor: tint }]}>
+          <View key={pos} style={[styles.player, { left, top }]}>
+            <View
+              style={[
+                styles.avatar,
+                { borderColor: ring, backgroundColor: tint, opacity: dim ? 0.38 : 1 },
+              ]}
+            >
               <Ionicons name="person" size={20} color={colors.bg} />
               {pos === 'BTN' ? (
                 <View style={styles.dealer}>
@@ -121,15 +134,15 @@ export function Table({
                 </View>
               ) : null}
             </View>
-            <View style={styles.nameTag}>
+            <View style={[styles.nameTag, { opacity: dim ? 0.45 : 1 }]}>
               <Text style={[styles.name, { color: isHero ? colors.primary : colors.text }]}>
                 {isHero ? 'Hero' : pos}
               </Text>
               {stackBB ? <Text style={styles.stack}>{stackBB}bb</Text> : null}
             </View>
-            {isVillain && villainBadge ? (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{villainBadge}</Text>
+            {actionBadge ? (
+              <View style={[styles.badge, badgeToneStyle(actionBadge.tone)]}>
+                <Text style={styles.badgeText}>{actionBadge.label}</Text>
               </View>
             ) : null}
           </View>
@@ -137,6 +150,17 @@ export function Table({
       })}
     </View>
   );
+}
+
+function badgeToneStyle(tone: TableActionTone): { backgroundColor: string } {
+  switch (tone) {
+    case 'fold':
+      return { backgroundColor: colors.danger };
+    case 'call':
+      return { backgroundColor: colors.gold };
+    case 'aggressive':
+      return { backgroundColor: colors.primary };
+  }
 }
 
 const styles = StyleSheet.create({
@@ -223,10 +247,10 @@ const styles = StyleSheet.create({
   badge: {
     position: 'absolute',
     top: -12,
-    backgroundColor: colors.gold,
     borderRadius: radius.pill,
-    paddingHorizontal: 7,
-    paddingVertical: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    zIndex: 4,
   },
   badgeText: { color: colors.bg, fontSize: 9, fontWeight: fontWeight.bold },
 });

@@ -113,7 +113,7 @@ export function FeedbackOverlay({
       <RangeViewerModal
         visible={rangeVisible}
         node={node}
-        playedHand={result.hand}
+        result={result}
         onClose={() => setRangeVisible(false)}
       />
     </View>

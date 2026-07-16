@@ -12,6 +12,7 @@ import { FeedbackOverlay } from '../FeedbackOverlay';
 import { PathNode } from '../PathNode';
 import { RangeHeatmap } from '../RangeHeatmap';
 import { TrainingView } from '../TrainingView';
+import { tableActionBadges } from '../tableStory';
 
 const node = getNode('pekarstas', 'cash6max_100bb_BTN_RFI');
 
@@ -134,13 +135,47 @@ describe('основные компоненты MVP', () => {
 
     fireEvent.press(view.getByRole('button', { name: 'Посмотреть диапазон' }));
     expect(view.getByText('Диапазон спота')).toBeTruthy();
-    expect(view.getByText('AA — сыгранная рука выделена рамкой')).toBeTruthy();
-    expect(view.getByLabelText('Рука AA, выбрана').props.accessibilityState.selected).toBe(true);
+    expect(view.getByText('AA · Вы выбрали: Рейз')).toBeTruthy();
+    expect(view.getByText('Ваш выбор')).toBeTruthy();
+    expect(view.getByText('В диапазоне')).toBeTruthy();
+    expect(view.getByLabelText('Рука AA, сыграна, выбрана').props.accessibilityState.selected).toBe(
+      true,
+    );
 
     fireEvent.press(view.getByLabelText('Рука KQs'));
     expect(view.getByText('Выбранная рука диапазона')).toBeTruthy();
+    expect(view.getByLabelText('Рука AA, сыграна')).toBeTruthy();
+    expect(view.getByLabelText('Рука KQs, выбрана').props.accessibilityState.selected).toBe(true);
     fireEvent.press(view.getByRole('button', { name: 'Вернуться к разбору' }));
     expect(view.queryByText('Диапазон спота')).toBeNull();
+  });
+
+  it('показывает на столе фолды до героя и действие героя после ответа', () => {
+    const beforeDecision = tableActionBadges(node);
+    expect(beforeDecision.UTG?.label).toBe('ФОЛД');
+    expect(beforeDecision.HJ?.label).toBe('ФОЛД');
+    expect(beforeDecision.CO?.label).toBe('ФОЛД');
+    expect(beforeDecision.BTN).toBeUndefined();
+
+    const afterDecision = tableActionBadges(node, 'raise');
+    expect(afterDecision.BTN?.label).toMatch(/^РЕЙЗ(?: [\d.]+ BB)?$/);
+  });
+
+  it('показывает рейз оппонента и не придумывает действия после него', () => {
+    const facingRaise = {
+      ...node,
+      hero: 'BTN' as const,
+      scenario: 'vs_RFI' as const,
+      villainPosition: 'CO' as const,
+    };
+    const badges = tableActionBadges(facingRaise);
+
+    expect(badges.UTG?.label).toBe('ФОЛД');
+    expect(badges.HJ?.label).toBe('ФОЛД');
+    expect(badges.CO?.label).toMatch(/^РЕЙЗ(?: [\d.]+ BB)?$/);
+    expect(badges.BTN).toBeUndefined();
+    expect(badges.SB).toBeUndefined();
+    expect(badges.BB).toBeUndefined();
   });
 
   it('проводит решение через общий TrainingView', () => {

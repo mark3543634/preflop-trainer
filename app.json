@@ -2,7 +2,7 @@
   "expo": {
     "name": "Preflop Trainer",
     "slug": "preflop-trainer",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "icon": "./assets/icon.png",
     "orientation": "portrait",
     "scheme": "prefloptrainer",
@@ -10,11 +10,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.prefloptrainer.app",
-      "buildNumber": "3"
+      "buildNumber": "4"
     },
     "android": {
       "package": "com.prefloptrainer.app",
-      "versionCode": 3,
+      "versionCode": 4,
       "blockedPermissions": [
         "android.permission.INTERNET",
         "android.permission.READ_EXTERNAL_STORAGE",

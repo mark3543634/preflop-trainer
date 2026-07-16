@@ -15,7 +15,8 @@ import { Table } from './Table';
 import { HoleCards } from './HoleCards';
 import { ActionButtons } from './ActionButtons';
 import { FeedbackOverlay } from './FeedbackOverlay';
-import { actionLabel, spotTitle, villainBadgeFor } from './labels';
+import { actionLabel, spotTitle } from './labels';
+import { tableActionBadges } from './tableStory';
 
 export function TrainingView({
   onComplete,
@@ -76,9 +77,13 @@ export function TrainingView({
   const total = session.length;
   const handNo = Math.min(session.position + (showFeedback ? 0 : 1), total);
   const liveScore = session.runningGtoScore();
-  const villainBadge = villainBadgeFor(displayNode.scenario);
+  const actionBadges = tableActionBadges(
+    displayNode,
+    showFeedback ? lastResult?.chosen : undefined,
+  );
   const tableWidth = Math.min(330, Math.max(280, windowWidth - spacing.xl));
   const tableHeight = Math.round(tableWidth * 0.76);
+  const holeCardSize = Math.round(Math.min(42, Math.max(34, tableWidth * 0.12)));
   const progress = total === 0 ? 0 : Math.min(100, (session.position / total) * 100);
   const advance = () => {
     setSelected(null);
@@ -138,7 +143,7 @@ export function TrainingView({
           mode="play"
           hero={displayNode.hero}
           villainPosition={displayNode.villainPosition}
-          villainBadge={villainBadge}
+          actionBadges={actionBadges}
           potLabel={
             displayNode.sizing.potBB === undefined
               ? 'Банк: нет данных'
@@ -149,7 +154,7 @@ export function TrainingView({
           height={tableHeight}
         />
         <View style={styles.cardsOverlay} pointerEvents="none">
-          <HoleCards hand={displayHand} size={58} />
+          <HoleCards hand={displayHand} size={holeCardSize} />
         </View>
       </View>
 

@@ -20,12 +20,16 @@ function Cell({
   node,
   hand,
   size,
+  highlighted,
+  highlightColor,
   selected,
   onPress,
 }: {
   node: RangeNode;
   hand: HandKey;
   size: number;
+  highlighted?: boolean;
+  highlightColor?: string;
   selected?: boolean;
   onPress?: (h: HandKey) => void;
 }) {
@@ -38,7 +42,7 @@ function Cell({
   return (
     <Pressable
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`Рука ${hand}${selected ? ', выбрана' : ''}`}
+      accessibilityLabel={`Рука ${hand}${highlighted ? ', сыграна' : ''}${selected ? ', выбрана' : ''}`}
       accessibilityState={{ selected }}
       onPress={onPress ? () => onPress(hand) : undefined}
       style={[styles.cell, { width: size, height: size }]}
@@ -60,7 +64,18 @@ function Cell({
           )}
         </View>
       </View>
-      {selected ? <View pointerEvents="none" style={styles.selectedOutline} /> : null}
+      {highlighted ? (
+        <View
+          pointerEvents="none"
+          style={[styles.highlightedOutline, { borderColor: highlightColor ?? colors.primary }]}
+        />
+      ) : null}
+      {selected ? (
+        <View
+          pointerEvents="none"
+          style={[styles.selectedOutline, highlighted ? styles.selectedOutlineInset : undefined]}
+        />
+      ) : null}
       <Text style={[styles.cellText, { fontSize: size * 0.32 }]}>{hand}</Text>
     </Pressable>
   );
@@ -69,11 +84,15 @@ function Cell({
 export function RangeHeatmap({
   node,
   width = 340,
+  highlightedHand,
+  highlightColor,
   selectedHand,
   onSelectHand,
 }: {
   node: RangeNode;
   width?: number;
+  highlightedHand?: HandKey;
+  highlightColor?: string;
   selectedHand?: HandKey;
   onSelectHand?: (h: HandKey) => void;
 }) {
@@ -90,6 +109,8 @@ export function RangeHeatmap({
                 node={node}
                 hand={hand}
                 size={size}
+                highlighted={highlightedHand === hand}
+                highlightColor={highlightColor}
                 selected={selectedHand === hand}
                 onPress={onSelectHand}
               />
@@ -134,11 +155,22 @@ const styles = StyleSheet.create({
     color: colors.bg,
     fontWeight: fontWeight.bold,
   },
-  selectedOutline: {
+  highlightedOutline: {
     ...StyleSheet.absoluteFill,
     borderWidth: 3,
-    borderColor: colors.text,
     zIndex: 2,
+  },
+  selectedOutline: {
+    ...StyleSheet.absoluteFill,
+    borderWidth: 2,
+    borderColor: colors.text,
+    zIndex: 3,
+  },
+  selectedOutlineInset: {
+    top: 3,
+    right: 3,
+    bottom: 3,
+    left: 3,
   },
   legend: {
     flexDirection: 'row',

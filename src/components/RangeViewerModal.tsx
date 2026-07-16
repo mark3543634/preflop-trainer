@@ -6,31 +6,38 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { HandKey, RangeNode } from '../types';
+import type { DecisionResult, HandKey, RangeNode } from '../types';
 import { rangeSource } from '../data/ranges';
-import { colors, radius, spacing } from '../theme';
+import { actionColor, colors, radius, spacing, verdictColor } from '../theme';
 import { AppText, Button, Card } from './primitives';
 import { FrequencyBar, nodeHandFreqs } from './FrequencyBar';
 import { HoleCards } from './HoleCards';
 import { HeatmapLegend, RangeHeatmap } from './RangeHeatmap';
-import { spotTitle } from './labels';
+import { actionLabel, spotTitle, verdictLabel } from './labels';
 
 export function RangeViewerModal({
   visible,
   node,
-  playedHand,
+  result,
   onClose,
 }: {
   visible: boolean;
   node: RangeNode;
-  playedHand: HandKey;
+  result: DecisionResult;
   onClose: () => void;
 }) {
   const { width } = useWindowDimensions();
+  const playedHand = result.hand;
   const [selectedHand, setSelectedHand] = useState<HandKey>(playedHand);
 
   const gridWidth = Math.min(width - spacing.lg * 2, 390);
   const source = rangeSource(node.providerId);
+  const chosenFrequency = node.hands[playedHand]?.[result.chosen]?.freq ?? 0;
+  const chosenColor =
+    result.chosen === 'fold'
+      ? colors.danger
+      : (actionColor[result.chosen] ?? verdictColor[result.grade.verdict]);
+  const bestActions = result.grade.bestActions.map(actionLabel).join(' / ') || '—';
 
   return (
     <Modal
@@ -61,16 +68,18 @@ export function RangeViewerModal({
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.playedChip}>
-            <Ionicons name="locate" size={15} color={colors.primary} />
-            <AppText variant="caption" weight="bold" color={colors.primary}>
-              {playedHand} — сыгранная рука выделена рамкой
+          <View style={[styles.playedChip, { borderColor: chosenColor }]}>
+            <Ionicons name="locate" size={15} color={chosenColor} />
+            <AppText variant="caption" weight="bold" color={chosenColor}>
+              {playedHand} · Вы выбрали: {actionLabel(result.chosen)}
             </AppText>
           </View>
 
           <RangeHeatmap
             node={node}
             width={gridWidth}
+            highlightedHand={playedHand}
+            highlightColor={chosenColor}
             selectedHand={selectedHand}
             onSelectHand={setSelectedHand}
           />
@@ -90,7 +99,40 @@ export function RangeViewerModal({
                 </AppText>
               </View>
             </View>
-            <FrequencyBar frequencies={nodeHandFreqs(node, selectedHand)} order={node.actions} />
+            <FrequencyBar
+              frequencies={nodeHandFreqs(node, selectedHand)}
+              order={node.actions}
+              chosen={selectedHand === playedHand ? result.chosen : undefined}
+            />
+            {selectedHand === playedHand ? (
+              <View style={styles.comparison}>
+                <View style={styles.comparisonItem}>
+                  <AppText variant="caption" color={colors.muted}>
+                    Ваш выбор
+                  </AppText>
+                  <AppText weight="bold" color={chosenColor}>
+                    {actionLabel(result.chosen)}
+                  </AppText>
+                </View>
+                <View style={styles.comparisonItem}>
+                  <AppText variant="caption" color={colors.muted}>
+                    В диапазоне
+                  </AppText>
+                  <AppText weight="bold">{Math.round(chosenFrequency * 100)}%</AppText>
+                </View>
+                <View style={styles.comparisonItem}>
+                  <AppText variant="caption" color={colors.muted}>
+                    Лучшее
+                  </AppText>
+                  <AppText weight="bold" color={colors.primary} numberOfLines={1}>
+                    {bestActions}
+                  </AppText>
+                </View>
+                <AppText variant="caption" weight="bold" color={verdictColor[result.grade.verdict]}>
+                  Оценка решения: {verdictLabel(result.grade.verdict)}
+                </AppText>
+              </View>
+            ) : null}
           </Card>
 
           <View style={styles.sourceNote}>
@@ -144,7 +186,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     borderWidth: 1,
-    borderColor: colors.primaryDim,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -152,6 +193,19 @@ const styles = StyleSheet.create({
   handCard: { gap: spacing.md, marginTop: spacing.sm },
   handHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   handTitle: { flex: 1 },
+  comparison: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+  },
+  comparisonItem: {
+    flexGrow: 1,
+    minWidth: 90,
+    gap: spacing.xs,
+  },
   sourceNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
