@@ -1,5 +1,10 @@
 # Preflop Trainer
 
+[![Проверки](https://github.com/mark3543634/preflop-trainer/actions/workflows/ci.yml/badge.svg)](https://github.com/mark3543634/preflop-trainer/actions/workflows/ci.yml)
+[![Сайт](https://github.com/mark3543634/preflop-trainer/actions/workflows/pages.yml/badge.svg)](https://mark3543634.github.io/preflop-trainer/)
+
+Сайт проекта: https://mark3543634.github.io/preflop-trainer/
+
 Бесплатный офлайн-тренажёр префлопа: обучающий путь в стиле Duolingo и
 песочница для самостоятельных drills. Приложение написано на React Native,
 Expo Router и TypeScript strict; Android — первая целевая платформа.
