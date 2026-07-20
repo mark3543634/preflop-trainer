@@ -1,5 +1,5 @@
 // =============================================================================
-// dates.ts — pure date helpers for streaks and spaced-repetition scheduling.
+// dates.ts — pure date helpers for spaced-repetition scheduling.
 // Work in local-date ISO strings ("YYYY-MM-DD") to avoid timezone drift.
 // =============================================================================
 

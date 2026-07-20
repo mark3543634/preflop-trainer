@@ -1,85 +1,207 @@
 <!doctype html>
 <html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Бесплатный офлайн-тренажёр префлопа для Android: обучение, песочница, повторы ошибок и статистика.">
-  <meta name="theme-color" content="#0E1116">
-  <title>Preflop Trainer — бесплатный тренажёр префлопа</title>
-  <link rel="icon" href="assets/icon.png">
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <header class="wrap nav">
-    <a class="brand" href="#top"><img src="assets/icon.png" alt=""><span>Preflop Trainer</span></a>
-    <nav class="nav-links" aria-label="Основная навигация">
-      <a href="#features">Возможности</a><a href="#interface">Интерфейс</a><a href="#data">Диапазоны</a><a href="#install">Установка</a>
-    </nav>
-  </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Бесплатный офлайн-тренажёр префлопа для Android: обучение, песочница, повторы ошибок и статистика."
+    />
+    <meta name="theme-color" content="#0E1116" />
+    <title>Preflop Trainer — бесплатный тренажёр префлопа</title>
+    <link rel="icon" href="assets/icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="wrap nav">
+      <a class="brand" href="#top"
+        ><img src="assets/icon.png" alt="" /><span>Preflop Trainer</span></a
+      >
+      <nav class="nav-links" aria-label="Основная навигация">
+        <a href="../">Открыть тренажёр</a><a href="#features">Возможности</a
+        ><a href="#interface">Интерфейс</a><a href="#data">Диапазоны</a
+        ><a href="#install">Установка</a>
+      </nav>
+    </header>
 
-  <main id="top">
-    <div class="wrap hero">
-      <div>
-        <div class="eyebrow">Бесплатно · офлайн · без регистрации</div>
-        <h1>Префлоп становится привычкой.</h1>
-        <p class="lead">Тренируйте решения по лицензированным диапазонам: проходите путь уроков, собирайте любой доступный спот в песочнице и возвращайтесь к ошибкам по расписанию.</p>
-        <div class="actions">
-          <a class="button disabled" data-download aria-disabled="true">APK готовится</a>
-          <a class="button secondary" href="#install">Как установить</a>
+    <main id="top">
+      <div class="wrap hero">
+        <div>
+          <div class="eyebrow">Бесплатно · офлайн · без регистрации</div>
+          <h1>Префлоп становится привычкой.</h1>
+          <p class="lead">
+            Тренируйте решения по лицензированным диапазонам: собирайте любой доступный спот в
+            песочнице, учитесь читать диапазоны на флопе и возвращайтесь к ошибкам по расписанию.
+          </p>
+          <div class="actions">
+            <a class="button" href="../">Открыть веб-версию</a>
+            <a class="button secondary disabled" data-download aria-disabled="true"
+              >APK готовится</a
+            >
+          </div>
+          <p class="release-line">
+            Версия <strong data-version>0.1.0-dev</strong> ·
+            <span data-release-date>2026-07-15</span> · Android 7.0+
+          </p>
         </div>
-        <p class="release-line">Версия <strong data-version>0.1.0-dev</strong> · <span data-release-date>2026-07-15</span> · Android 7.0+</p>
-      </div>
-      <div class="hero-card" aria-label="Предпросмотр обучающего пути">
-        <div class="phone-head"><span>УЧИТЬСЯ</span><span>🔥 7 дней · 1240 XP</span></div>
-        <div class="score"><span>ПО ЧАРТУ</span><strong>86</strong></div>
-        <div class="path">
-          <div class="path-row"><div class="node">✓</div><div><b>Основы</b><br><small>Позиции и нотация рук</small></div></div>
-          <div class="path-row"><div class="node">2</div><div><b>RFI с поздних позиций</b><br><small>Текущий урок</small></div></div>
-          <div class="path-row"><div class="node locked">3</div><div><b>Защита блайндов</b><br><small>Откроется после checkpoint</small></div></div>
+        <div class="hero-card" aria-label="Предпросмотр чтения диапазонов">
+          <div class="phone-head"><span>ЧТЕНИЕ ДИАПАЗОНОВ</span><span>ВОПРОС 1 ИЗ 7</span></div>
+          <div class="score"><span>ФЛОП</span><strong>A♠ K♦ 2♣</strong></div>
+          <div class="path">
+            <div class="path-row">
+              <div class="node">UTG</div>
+              <div><b>Рейз 2.5 BB</b><br /><small>Диапазон открытия</small></div>
+            </div>
+            <div class="path-row">
+              <div class="node">BB</div>
+              <div><b>Колл</b><br /><small>Диапазон защиты</small></div>
+            </div>
+            <div class="path-row">
+              <div>
+                <b>Чей диапазон лучше попал во флоп?</b><br /><small
+                  >Ответ рассчитывается по equity диапазонов</small
+                >
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <section id="features" class="wrap">
-      <div class="section-title"><div class="eyebrow">Один движок — два режима</div><h2>Учитесь по шагам или собирайте свой спот</h2><p>Результат каждого решения считается только из загруженных данных. В коде нет придуманных диапазонов или условий для отдельных рук.</p></div>
-      <div class="features">
-        <article class="feature"><div class="icon">01</div><b>Путь обучения</b><p>Концепты, примеры, drills и checkpoints с открытием следующих уроков.</p></article>
-        <article class="feature"><div class="icon">02</div><b>Песочница</b><p>Стек, позиция, сценарий, оппонент и длина сессии — без лишних переключателей.</p></article>
-        <article class="feature"><div class="icon">03</div><b>Повтор ошибок</b><p>Очередь 1/3/7 дней возвращает сложные руки, но никогда не блокирует тренировку.</p></article>
-        <article class="feature"><div class="icon">04</div><b>Честная статистика</b><p>Совпадение с выбранным чартом и приоритет повторения. EV и bb/100 скрыты, если источник их не содержит.</p></article>
+      <section id="features" class="wrap">
+        <div class="section-title">
+          <div class="eyebrow">Один источник данных — два режима</div>
+          <h2>Читайте диапазоны или собирайте свой спот</h2>
+          <p>
+            Результат каждого решения считается только из загруженных данных. В коде нет придуманных
+            диапазонов или условий для отдельных рук.
+          </p>
+        </div>
+        <div class="features">
+          <article class="feature">
+            <div class="icon">01</div>
+            <b>Чтение диапазонов</b>
+            <p>
+              Последовательность действий, флоп и вопрос о том, чей диапазон получил больше equity.
+            </p>
+          </article>
+          <article class="feature">
+            <div class="icon">02</div>
+            <b>Песочница</b>
+            <p>Стек, позиция, сценарий, оппонент и длина сессии — без лишних переключателей.</p>
+          </article>
+          <article class="feature">
+            <div class="icon">03</div>
+            <b>Повтор ошибок</b>
+            <p>Очередь 1/3/7 дней возвращает сложные руки, но никогда не блокирует тренировку.</p>
+          </article>
+          <article class="feature">
+            <div class="icon">04</div>
+            <b>Честная статистика</b>
+            <p>
+              Совпадение с выбранным чартом и приоритет повторения. EV и bb/100 скрыты, если
+              источник их не содержит.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="interface" class="wrap">
+        <div class="section-title">
+          <div class="eyebrow">Интерфейс приложения</div>
+          <h2>Всё важное видно одним взглядом</h2>
+        </div>
+        <div class="previews">
+          <figure class="screenshot">
+            <img src="screens/train.png" loading="lazy" alt="Конструктор спота в песочнице" />
+            <figcaption>Песочница</figcaption>
+          </figure>
+          <figure class="screenshot">
+            <img src="screens/stats.png" loading="lazy" alt="Статистика и heatmap диапазона" />
+            <figcaption>Статистика и heatmap</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="data" class="wrap">
+        <div class="section-title">
+          <div class="eyebrow">Проверенные данные</div>
+          <h2>Одна библиотека диапазонов</h2>
+        </div>
+        <div class="legal">
+          <article class="legal-card">
+            <h3>В публичной версии</h3>
+            <ul>
+              <li>Единый набор без выбора паков</li>
+              <li>Cash 6-max, 100 BB</li>
+              <li>169 рук в каждом доступном споте</li>
+              <li>Автоматическая проверка частот и действий</li>
+            </ul>
+          </article>
+          <article class="legal-card">
+            <h3>Не выдаём предположения за факты</h3>
+            <ul>
+              <li>Нет надписи «exact GTO» без параметров solver run</li>
+              <li>Нет EV-метрик, если EV отсутствует в источнике</li>
+              <li>Локальные Pio/TexasSolver-файлы не входят в APK</li>
+              <li>Все действия и частоты проходят автоматическую проверку</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="install" class="wrap">
+        <div class="section-title">
+          <div class="eyebrow">Установка Android</div>
+          <h2>Скачайте APK и тренируйтесь без сети</h2>
+        </div>
+        <div class="legal">
+          <article class="legal-card">
+            <h3>Как установить</h3>
+            <ol>
+              <li>Скачайте APK кнопкой ниже.</li>
+              <li>Откройте файл на Android.</li>
+              <li>Если система попросит, разрешите установку из этого источника.</li>
+              <li>После установки разрешение можно снова отключить.</li>
+            </ol>
+            <a class="button disabled" data-download aria-disabled="true">APK готовится</a>
+          </article>
+          <article class="legal-card">
+            <h3>Проверка файла</h3>
+            <p>SHA-256 релизного APK:</p>
+            <div class="checksum" data-checksum>Сборка готовится</div>
+            <p>
+              <small
+                >Приложение не требует аккаунта, сервера или доступа к интернету. Минимальная
+                версия: Android 7.0+.</small
+              >
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="wrap">
+        <div class="cta">
+          <h2>Больше практики. Меньше угадывания.</h2>
+          <p>
+            Образовательный инструмент для изучения префлоп-решений. Не является азартной игрой и не
+            гарантирует выигрыш.
+          </p>
+          <div class="actions" style="justify-content: center">
+            <a class="button" href="../">Открыть веб-тренажёр</a>
+            <a class="button secondary disabled" data-download aria-disabled="true"
+              >APK готовится</a
+            >
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap footer-row">
+        <span>© 2026 Preflop Trainer · MIT</span
+        ><span><a href="privacy.html">Политика конфиденциальности</a></span>
       </div>
-    </section>
-
-    <section id="interface" class="wrap">
-      <div class="section-title"><div class="eyebrow">Интерфейс приложения</div><h2>Всё важное видно одним взглядом</h2></div>
-      <div class="previews">
-        <figure class="screenshot"><img src="screens/learn.png" loading="lazy" alt="Путь обучения Preflop Trainer"><figcaption>Путь обучения</figcaption></figure>
-        <figure class="screenshot"><img src="screens/train.png" loading="lazy" alt="Конструктор спота в песочнице"><figcaption>Песочница</figcaption></figure>
-        <figure class="screenshot"><img src="screens/stats.png" loading="lazy" alt="Статистика и heatmap диапазона"><figcaption>Статистика и heatmap</figcaption></figure>
-        <figure class="screenshot"><img src="screens/profile.png" loading="lazy" alt="Профиль, лига и настройки"><figcaption>Профиль и настройки</figcaption></figure>
-      </div>
-    </section>
-
-    <section id="data" class="wrap">
-      <div class="section-title"><div class="eyebrow">Проверенные данные</div><h2>Одна библиотека диапазонов</h2></div>
-      <div class="legal">
-        <article class="legal-card"><h3>В публичной версии</h3><ul><li>Единый набор без выбора паков</li><li>Cash 6-max, 100 BB</li><li>169 рук в каждом доступном споте</li><li>Автоматическая проверка частот и действий</li></ul></article>
-        <article class="legal-card"><h3>Не выдаём предположения за факты</h3><ul><li>Нет надписи «exact GTO» без параметров solver run</li><li>Нет EV-метрик, если EV отсутствует в источнике</li><li>Локальные Pio/TexasSolver-файлы не входят в APK</li><li>Все действия и частоты проходят автоматическую проверку</li></ul></article>
-      </div>
-    </section>
-
-    <section id="install" class="wrap">
-      <div class="section-title"><div class="eyebrow">Установка Android</div><h2>Скачайте APK и тренируйтесь без сети</h2></div>
-      <div class="legal">
-        <article class="legal-card"><h3>Как установить</h3><ol><li>Скачайте APK кнопкой ниже.</li><li>Откройте файл на Android.</li><li>Если система попросит, разрешите установку из этого источника.</li><li>После установки разрешение можно снова отключить.</li></ol><a class="button disabled" data-download aria-disabled="true">APK готовится</a></article>
-        <article class="legal-card"><h3>Проверка файла</h3><p>SHA-256 релизного APK:</p><div class="checksum" data-checksum>Сборка готовится</div><p><small>Приложение не требует аккаунта, сервера или доступа к интернету. Минимальная версия: Android 7.0+.</small></p></article>
-      </div>
-    </section>
-
-    <section class="wrap"><div class="cta"><h2>Больше практики. Меньше угадывания.</h2><p>Образовательный инструмент для изучения префлоп-решений. Не является азартной игрой и не гарантирует выигрыш.</p><div class="actions" style="justify-content:center"><a class="button disabled" data-download aria-disabled="true">APK готовится</a></div></div></section>
-  </main>
-
-  <footer><div class="wrap footer-row"><span>© 2026 Preflop Trainer · MIT</span><span><a href="privacy.html">Политика конфиденциальности</a></span></div></footer>
-  <script src="app.js" defer></script>
-</body>
+    </footer>
+    <script src="app.js" defer></script>
+  </body>
 </html>

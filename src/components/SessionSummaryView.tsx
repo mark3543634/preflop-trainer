@@ -1,5 +1,5 @@
 // =============================================================================
-// SessionSummaryView — end-of-session results (sandbox / review / lesson drill).
+// SessionSummaryView — end-of-session results (sandbox / review).
 // =============================================================================
 import { ScrollView, StyleSheet, View } from 'react-native';
 import type { SessionSummary } from '../types';
@@ -13,7 +13,6 @@ export function SessionSummaryView({
   summary,
   title,
   subtitle,
-  xpEarned,
   onReplay,
   onReviewMistakes,
   onDone,
@@ -22,7 +21,6 @@ export function SessionSummaryView({
   summary: SessionSummary;
   title: string;
   subtitle?: string;
-  xpEarned?: number;
   onReplay?: () => void;
   onReviewMistakes?: () => void;
   onDone: () => void;
@@ -66,14 +64,6 @@ export function SessionSummaryView({
         />
       </View>
 
-      {xpEarned !== undefined ? (
-        <Card style={styles.xpCard}>
-          <AppText weight="bold" color={colors.primary}>
-            +{xpEarned} XP
-          </AppText>
-        </Card>
-      ) : null}
-
       {summary.mistakes.length > 0 ? (
         <View style={styles.mistakes}>
           <AppText variant="title" weight="bold" style={{ marginBottom: spacing.sm }}>
@@ -104,7 +94,7 @@ export function SessionSummaryView({
         </View>
       ) : (
         <AppText center color={colors.primary} style={{ marginTop: spacing.lg }}>
-          Чистая сессия — без ошибок! 🎉
+          Ошибок в этой сессии нет.
         </AppText>
       )}
 
@@ -139,10 +129,6 @@ const styles = StyleSheet.create({
   tiles: {
     flexDirection: 'row',
     gap: spacing.sm,
-  },
-  xpCard: {
-    alignItems: 'center',
-    paddingVertical: spacing.md,
   },
   mistakes: {
     marginTop: spacing.md,

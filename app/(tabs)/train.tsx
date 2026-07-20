@@ -224,7 +224,6 @@ export default function TrainScreen() {
       origin: 'sandbox',
       examMode,
       examMistakeCap,
-      awardProgress: true,
     });
     router.push('/training');
   }
@@ -280,7 +279,6 @@ export default function TrainScreen() {
       origin: 'sandbox',
       examMode,
       examMistakeCap,
-      awardProgress: true,
     });
     router.push('/training');
   }
@@ -563,8 +561,7 @@ export default function TrainScreen() {
                           {preset.name}
                         </AppText>
                         <AppText variant="caption" color={colors.muted}>
-                          {preset.stackBB} BB · {preset.length}{' '}
-                          рук
+                          {preset.stackBB} BB · {preset.length} рук
                         </AppText>
                       </View>
                       <Ionicons

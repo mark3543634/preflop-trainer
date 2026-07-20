@@ -1,6 +1,6 @@
 // =============================================================================
 // ActionButtons — legal-action chips from node.actions. The parent decides
-// whether a tap submits instantly (Sandbox) or needs confirmation (lessons).
+// whether a tap submits instantly (Sandbox) or needs confirmation (Review).
 // =============================================================================
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Action } from '../types';

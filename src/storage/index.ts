@@ -68,10 +68,22 @@ export async function writeJSON<T>(key: StorageKey, value: T): Promise<void> {
   }
 }
 
+/** Delete persisted values left by versions that had gamification. */
+export async function clearRetiredGamification(): Promise<void> {
+  try {
+    await AsyncStorage.multiRemove([StorageKeys.progress, LegacyStorageKeys.progress]);
+  } catch {
+    // Best-effort cleanup; no retired values are read by the application.
+  }
+}
+
 /** Remove every key this app owns (used by "reset progress"). */
 export async function clearAll(): Promise<void> {
   try {
-    await AsyncStorage.multiRemove([...Object.values(StorageKeys), ...Object.values(LegacyStorageKeys)]);
+    await AsyncStorage.multiRemove([
+      ...Object.values(StorageKeys),
+      ...Object.values(LegacyStorageKeys),
+    ]);
   } catch {
     // ignore
   }

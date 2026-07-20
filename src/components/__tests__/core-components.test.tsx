@@ -1,6 +1,6 @@
 import { act, fireEvent, render } from '@testing-library/react-native';
 import TrainScreen from '../../../app/(tabs)/train';
-import LearnScreen from '../../../app/(tabs)/index';
+import RangeReadingScreen from '../../../app/(tabs)/index';
 import ProfileScreen from '../../../app/(tabs)/profile';
 import StatsScreen from '../../../app/(tabs)/stats';
 import { getNode } from '../../data/ranges';
@@ -9,7 +9,6 @@ import { usePresets } from '../../store/presetsStore';
 import { useSettings } from '../../store/settingsStore';
 import type { DecisionResult } from '../../types';
 import { FeedbackOverlay } from '../FeedbackOverlay';
-import { PathNode } from '../PathNode';
 import { RangeHeatmap } from '../RangeHeatmap';
 import { TrainingView } from '../TrainingView';
 import { tableActionBadges } from '../tableStory';
@@ -75,10 +74,10 @@ describe('основные компоненты MVP', () => {
     });
   });
 
-  it('рендерит Learn, Stats и Profile без циклических Zustand-селекторов', () => {
-    expect(render(<LearnScreen />).getByText('Юнит 0 · Основы')).toBeTruthy();
+  it('рендерит чтение диапазонов, Stats и Profile без циклических Zustand-селекторов', () => {
+    expect(render(<RangeReadingScreen />).getByText('Чтение диапазонов')).toBeTruthy();
     expect(render(<StatsScreen />).getByText('Главные зоны повторения')).toBeTruthy();
-    expect(render(<ProfileScreen />).getByText('Настройки')).toBeTruthy();
+    expect(render(<ProfileScreen />).getByText('Настройки тренажёра')).toBeTruthy();
   });
 
   it('позволяет выбрать любой доступный спот для просмотра в статистике', () => {
@@ -90,19 +89,20 @@ describe('основные компоненты MVP', () => {
     expect(view.getByText('HJ · Опен-рейз (RFI)')).toBeTruthy();
   });
 
-  it('показывает настройки до компактной mock-лиги и честно отключает RNG', () => {
+  it('показывает только инструментальные настройки и честно отключает RNG', () => {
     const view = render(<ProfileScreen />);
     expect(view.getByLabelText('RNG-режим').props.accessibilityState.disabled).toBe(true);
-    expect(view.queryByText('SqueezeQueen')).toBeNull();
-    fireEvent.press(view.getByLabelText('Показать всю таблицу лиги'));
-    expect(view.getByText('SqueezeQueen')).toBeTruthy();
+    expect(view.getByText('Настройки тренажёра')).toBeTruthy();
+    expect(view.getByText('Локальное хранение')).toBeTruthy();
+    expect(view.queryByText(/SqueezeQueen|XP|лига/i)).toBeNull();
   });
 
-  it('показывает заблокированное состояние узла пути', () => {
-    const onPress = jest.fn();
-    const view = render(<PathNode title="Защита блайндов" state="locked" onPress={onPress} />);
-    expect(view.getByText('🔒')).toBeTruthy();
-    expect(onPress).not.toHaveBeenCalled();
+  it('показывает ответ и equity после выбора в чтении диапазонов', () => {
+    const view = render(<RangeReadingScreen />);
+    expect(view.getByText('Чей диапазон лучше попал во флоп?')).toBeTruthy();
+    fireEvent.press(view.getByRole('button', { name: 'UTG · рейзер' }));
+    expect(view.getByText(/Ответ по расчёту:/)).toBeTruthy();
+    expect(view.getByRole('button', { name: 'СЛЕДУЮЩИЙ ФЛОП' })).toBeTruthy();
   });
 
   it('рисует 13x13 heatmap из данных узла', () => {
@@ -209,7 +209,6 @@ describe('основные компоненты MVP', () => {
         title: 'Тест',
         origin: 'sandbox',
         examMode: false,
-        awardProgress: false,
       });
     });
     const view = render(<TrainingView onComplete={jest.fn()} />);
@@ -220,13 +219,12 @@ describe('основные компоненты MVP', () => {
     expect(view.getByRole('button', { name: 'Следующая рука' })).toBeTruthy();
   });
 
-  it('оставляет подтверждение действия в учебном режиме', () => {
+  it('оставляет подтверждение действия в режиме повторения', () => {
     act(() => {
       useSession.getState().start([node], 1, {
-        title: 'Тест урока',
-        origin: 'lesson',
+        title: 'Тест повторения',
+        origin: 'review',
         examMode: false,
-        awardProgress: false,
       });
     });
     const view = render(<TrainingView onComplete={jest.fn()} />);

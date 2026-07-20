@@ -1,7 +1,7 @@
 // =============================================================================
 // sessionStore — active training session that drives the Training screen.
 // Wraps the PURE Session engine and, on completion, fans results out to the
-// stats / review / progress stores. UI never touches the engine directly.
+// stats / review stores. UI never touches the engine directly.
 // =============================================================================
 import { create } from 'zustand';
 import { Session, planSession, shouldEndExam, type PlannedHand } from '../engine/session';
@@ -10,18 +10,15 @@ import { getNode } from '../data/ranges';
 import { useSettings } from './settingsStore';
 import { useStats } from './statsStore';
 import { useReview } from './reviewStore';
-import { useProgress } from './progressStore';
-import { xpForResult } from '../engine/progression';
 import { rangeRefKey } from '../engine/rangeRef';
 
-export type SessionOrigin = 'sandbox' | 'lesson' | 'review';
+export type SessionOrigin = 'sandbox' | 'review';
 
 export interface SessionMeta {
   title: string;
   origin: SessionOrigin;
   examMode: boolean;
   examMistakeCap?: number;
-  awardProgress: boolean; // award XP/streak on finish (lessons handle their own too)
 }
 
 interface SessionStoreState {
@@ -162,12 +159,6 @@ function finalize(session: Session, meta: SessionMeta): void {
       const passed = r.grade.verdict === 'best' || r.grade.verdict === 'correct';
       useReview.getState().reviewOutcome(`${r.providerId}::${r.nodeId}::${r.hand}`, passed);
     }
-  }
-
-  // XP + streak.
-  if (meta.awardProgress) {
-    useProgress.getState().addXp(xpForResult(summary.handsPlayed, summary.gtoScore));
-    useProgress.getState().recordPlayDay();
   }
 }
 

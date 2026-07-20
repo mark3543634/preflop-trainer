@@ -1,13 +1,12 @@
 import type { ru } from './ru';
 
 export const en: Record<keyof typeof ru, string> = {
-  'tabs.learn': 'Learn',
+  'tabs.reading': 'Reading',
   'tabs.train': 'Train',
   'tabs.stats': 'Stats',
-  'tabs.profile': 'Profile',
+  'tabs.profile': 'Settings',
   'screen.training': 'Training',
   'screen.review': 'Review',
-  'screen.lesson': 'Lesson',
   'screen.range': 'Range',
   'action.fold': 'Fold',
   'action.call': 'Call',

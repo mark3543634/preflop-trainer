@@ -6,7 +6,6 @@ import { TrainingView } from '../src/components/TrainingView';
 import { SessionSummaryView } from '../src/components/SessionSummaryView';
 import { Screen } from '../src/components/primitives';
 import { planFromPairs, useSession } from '../src/store/sessionStore';
-import { xpForResult } from '../src/engine/progression';
 import type { SessionSummary } from '../src/types';
 
 export default function TrainingRoute() {
@@ -18,7 +17,6 @@ export default function TrainingRoute() {
   const [done, setDone] = useState<SessionSummary | null>(null);
 
   if (done) {
-    const xp = meta?.awardProgress ? xpForResult(done.handsPlayed, done.gtoScore) : undefined;
     return (
       <Screen>
         <SessionSummaryView
@@ -29,7 +27,6 @@ export default function TrainingRoute() {
               ? `Достигнут лимит ошибок · ${meta?.title ?? ''}`
               : meta?.title
           }
-          xpEarned={xp}
           onReplay={() => {
             if (replay()) setDone(null);
           }}
@@ -48,7 +45,6 @@ export default function TrainingRoute() {
                     title: 'Работа над ошибками',
                     origin: 'sandbox',
                     examMode: false,
-                    awardProgress: true,
                   });
                   setDone(null);
                 }

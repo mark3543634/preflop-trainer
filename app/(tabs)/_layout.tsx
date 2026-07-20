@@ -1,4 +1,4 @@
-// Bottom tabs: Learn | Train | Stats | Profile (line icons, mint accent).
+// Bottom tabs: Range Reading | Train | Stats | Settings.
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,9 +33,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: t('tabs.learn'),
+          title: t('tabs.reading'),
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={icon(focused, 'map')} size={22} color={color} />
+            <Ionicons name={icon(focused, 'book')} size={22} color={color} />
           ),
         }}
       />
@@ -62,7 +62,7 @@ export default function TabsLayout() {
         options={{
           title: t('tabs.profile'),
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={icon(focused, 'person')} size={22} color={color} />
+            <Ionicons name={icon(focused, 'settings')} size={22} color={color} />
           ),
         }}
       />

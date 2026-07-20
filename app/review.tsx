@@ -34,15 +34,21 @@ export default function ReviewRoute() {
       title: 'Очередь повторения',
       origin: 'review',
       examMode: false,
-      awardProgress: true,
     });
   }, [reviewPlan, startWithPlan]);
 
   if (reviewPlan.plan.length === 0) {
     return (
-      <Screen style={{ alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.lg }}>
+      <Screen
+        style={{
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: spacing.xl,
+          gap: spacing.lg,
+        }}
+      >
         <AppText variant="title" weight="bold" center>
-          Пока нечего повторять 🎉
+          Пока нечего повторять
         </AppText>
         <AppText color={colors.muted} center>
           Очередь пуста. Ошибки из тренировок появятся здесь по расписанию интервальных повторений.

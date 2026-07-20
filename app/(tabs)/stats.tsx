@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useStats } from '../../src/store/statsStore';
 import { useSession } from '../../src/store/sessionStore';
 import { useSettings } from '../../src/store/settingsStore';
+import { useReview } from '../../src/store/reviewStore';
 import { allCombinedNodes, getCombinedNode, getNode } from '../../src/data/ranges';
 import { accuracy, mergeStatsByNodeId, sortLeaks, type NodeStat } from '../../src/engine/leaks';
 import { AppText, Button, Card } from '../../src/components/primitives';
@@ -21,6 +22,7 @@ export default function StatsScreen() {
   const totalDecisions = useStats((s) => s.totalDecisions);
   const gtoHistory = useStats((s) => s.gtoHistory);
   const perNode = useStats((s) => s.perNode);
+  const dueCount = useReview((s) => s.dueCount());
   const allLeaks = useMemo(
     () =>
       sortLeaks(
@@ -47,7 +49,6 @@ export default function StatsScreen() {
       origin: 'sandbox',
       examMode: useSettings.getState().examMode,
       examMistakeCap: useSettings.getState().examMistakeCap,
-      awardProgress: true,
     });
     router.push('/training');
   }
@@ -89,6 +90,23 @@ export default function StatsScreen() {
           sub={evHands === 0 ? 'Нет EV в источнике' : 'bb'}
         />
       </View>
+
+      {dueCount > 0 ? (
+        <Pressable accessibilityRole="button" onPress={() => router.push('/review')}>
+          <Card style={styles.reviewBanner}>
+            <Ionicons name="refresh-circle" size={26} color={colors.bg} />
+            <View style={{ flex: 1 }}>
+              <AppText weight="black" color={colors.bg}>
+                Ошибок к повторению: {dueCount}
+              </AppText>
+              <AppText variant="caption" color={colors.bg}>
+                Начать короткую сессию повторения
+              </AppText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.bg} />
+          </Card>
+        </Pressable>
+      ) : null}
 
       <AppText variant="title" weight="bold" style={{ marginTop: spacing.sm }}>
         Главные зоны повторения
@@ -244,6 +262,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   tiles: { flexDirection: 'row', gap: spacing.sm },
+  reviewBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+  },
   spark: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 44 },
   leakCard: {
     backgroundColor: colors.dangerSoft,

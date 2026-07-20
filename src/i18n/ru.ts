@@ -1,11 +1,10 @@
 export const ru = {
-  'tabs.learn': 'Учиться',
+  'tabs.reading': 'Чтение',
   'tabs.train': 'Тренировка',
   'tabs.stats': 'Статистика',
-  'tabs.profile': 'Профиль',
+  'tabs.profile': 'Настройки',
   'screen.training': 'Тренировка',
   'screen.review': 'Повторение',
-  'screen.lesson': 'Урок',
   'screen.range': 'Диапазон',
   'action.fold': 'Фолд',
   'action.call': 'Колл',
