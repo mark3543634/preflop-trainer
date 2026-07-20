@@ -34,26 +34,34 @@ function enumerateHands() {
 const HANDS = enumerateHands();
 
 const LEGAL = {
-  UTG: [{ scenario: 'RFI', villains: [] }],
+  UTG: [
+    { scenario: 'RFI', villains: [] },
+    { scenario: 'vs_3bet', villains: ['HJ', 'CO', 'BTN', 'SB', 'BB'] },
+  ],
   HJ: [
     { scenario: 'RFI', villains: [] },
+    { scenario: 'vs_RFI', villains: ['UTG'] },
     { scenario: 'vs_3bet', villains: ['CO', 'BTN', 'SB', 'BB'] },
+    { scenario: 'vs_4bet', villains: ['UTG'] },
   ],
   CO: [
     { scenario: 'RFI', villains: [] },
     { scenario: 'vs_RFI', villains: ['UTG', 'HJ'] },
     { scenario: 'vs_3bet', villains: ['BTN', 'SB', 'BB'] },
+    { scenario: 'vs_4bet', villains: ['UTG', 'HJ'] },
   ],
   BTN: [
     { scenario: 'RFI', villains: [] },
     { scenario: 'vs_RFI', villains: ['UTG', 'HJ', 'CO'] },
     { scenario: 'vs_3bet', villains: ['SB', 'BB'] },
+    { scenario: 'vs_4bet', villains: ['UTG', 'HJ', 'CO'] },
     { scenario: 'squeeze', villains: ['UTG', 'HJ', 'CO'] },
   ],
   SB: [
     { scenario: 'RFI', villains: [] },
     { scenario: 'vs_RFI', villains: ['UTG', 'HJ', 'CO', 'BTN'] },
     { scenario: 'vs_3bet', villains: ['BB'] },
+    { scenario: 'vs_4bet', villains: ['UTG', 'HJ', 'CO', 'BTN'] },
     { scenario: 'blind_defense', villains: ['UTG', 'HJ', 'CO', 'BTN'] },
   ],
   BB: [

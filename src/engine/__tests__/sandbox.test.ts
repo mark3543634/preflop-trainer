@@ -1,4 +1,4 @@
-import { allNodes } from '../../data/ranges';
+import { allCombinedNodes, allNodes } from '../../data/ranges';
 import type { RangeNode } from '../../types';
 import {
   availableSandboxPositions,
@@ -48,6 +48,28 @@ describe('sandbox availability', () => {
     expect(coverage.legal).toBeGreaterThanOrEqual(coverage.available);
   });
 
+  it('does not hide any imported Pekarstas node behind the scenario matrix', () => {
+    const trainableIds = new Set(
+      ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'].flatMap((hero) =>
+        resolveSandboxNodes(nodes, {
+          format: 'cash_6max',
+          stackBB: 100,
+          hero: hero as RangeNode['hero'],
+          mode: 'mix',
+        }).map((node) => node.id),
+      ),
+    );
+
+    expect(trainableIds.size).toBe(nodes.length);
+    expect(trainableIds).toEqual(new Set(nodes.map((node) => node.id)));
+  });
+
+  it('exposes all seven shipped HJ spots in the builder', () => {
+    const hjScope = { format: 'cash_6max' as const, stackBB: 100, hero: 'HJ' as const };
+    expect(sandboxCoverage(nodes, hjScope)).toEqual({ available: 7, legal: 7 });
+    expect(resolveSandboxNodes(nodes, { ...hjScope, mode: 'mix' })).toHaveLength(7);
+  });
+
   it('keeps legal-but-missing villains visible as unavailable metadata', () => {
     const onlyCo = nodes.filter(
       (node) => node.id === 'cash6max_100bb_BTN_vs_RFI_CO',
@@ -73,15 +95,21 @@ describe('sandbox availability', () => {
     ]);
   });
 
+  it('leaves only squeeze spots missing from the combined public library', () => {
+    const missing = missingSandboxSpots(allCombinedNodes(), 'cash_6max', 100);
+    expect(missing).toHaveLength(8);
+    expect(missing.every((spot) => spot.scenario === 'squeeze')).toBe(true);
+  });
+
   it('reports Greenline gaps without mixing providers', () => {
     const missing = missingSandboxSpots(allNodes('greenline'), 'cash_6max', 100);
-    expect(missing).toHaveLength(10);
+    expect(missing).toHaveLength(21);
     expect(missing).toContainEqual({ hero: 'CO', scenario: 'vs_RFI', villainPosition: 'UTG' });
     expect(missing).toContainEqual({ hero: 'CO', scenario: 'vs_RFI', villainPosition: 'HJ' });
     expect(missing.filter((spot) => spot.scenario === 'squeeze')).toHaveLength(8);
   });
 
-  it('reports all 46 legal nodes missing at an unsupported stack', () => {
-    expect(missingSandboxSpots(nodes, 'cash_6max', 40)).toHaveLength(46);
+  it('reports all 62 legal nodes missing at an unsupported stack', () => {
+    expect(missingSandboxSpots(nodes, 'cash_6max', 40)).toHaveLength(62);
   });
 });

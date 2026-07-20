@@ -6,12 +6,20 @@ function scenarioTypes(hero: Parameters<typeof legalScenarios>[0]): ScenarioType
 }
 
 describe('legalScenarios matrix', () => {
-  it('UTG can only open (RFI)', () => {
-    expect(scenarioTypes('UTG')).toEqual(['RFI']);
+  it('UTG can open and respond to every later 3-bettor', () => {
+    expect(scenarioTypes('UTG')).toEqual(['RFI', 'vs_3bet']);
+    const vs3bet = legalScenarios('UTG').find((s) => s.scenario === 'vs_3bet');
+    expect(vs3bet?.villainPositions).toEqual(['HJ', 'CO', 'BTN', 'SB', 'BB']);
   });
 
-  it('HJ has RFI and vs_3bet only', () => {
-    expect(scenarioTypes('HJ').sort()).toEqual(['RFI', 'vs_3bet']);
+  it('HJ can face the UTG open and a UTG 4-bet', () => {
+    expect(scenarioTypes('HJ')).toEqual(['RFI', 'vs_RFI', 'vs_3bet', 'vs_4bet']);
+    expect(
+      legalScenarios('HJ').find((s) => s.scenario === 'vs_RFI')?.villainPositions,
+    ).toEqual(['UTG']);
+    expect(
+      legalScenarios('HJ').find((s) => s.scenario === 'vs_4bet')?.villainPositions,
+    ).toEqual(['UTG']);
   });
 
   it('CO faces RFI from UTG/HJ', () => {
@@ -21,6 +29,7 @@ describe('legalScenarios matrix', () => {
 
   it('BTN can squeeze and 3bet earlier openers', () => {
     expect(scenarioTypes('BTN')).toContain('squeeze');
+    expect(scenarioTypes('BTN')).toContain('vs_4bet');
     const vsRfi = legalScenarios('BTN').find((s) => s.scenario === 'vs_RFI');
     expect(vsRfi?.villainPositions).toEqual(['UTG', 'HJ', 'CO']);
   });

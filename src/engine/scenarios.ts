@@ -1,5 +1,5 @@
 // =============================================================================
-// scenarios.ts — the VALID SCENARIO MATRIX as a pure function.
+// scenarios.ts — the valid 6-max preflop decision matrix as a pure function.
 // UI must only ever show legal combos; it asks legalScenarios(hero).
 // =============================================================================
 import { POSITIONS, type LegalScenario, type Position, type ScenarioType } from '../types';
@@ -23,14 +23,19 @@ function laterPositions(hero: Position): Position[] {
 /**
  * legalScenarios(hero): which scenarios the hero can train, and against which
  * villain positions. An empty villainPositions array means no villain is needed
- * (e.g. RFI). This encodes the matrix from the spec exactly:
+ * (e.g. RFI). The matrix covers every heads-up decision represented by the
+ * imported source charts:
  *
- *   UTG: RFI only (first to act).
- *   HJ:  RFI; vs_3bet.
- *   CO:  RFI; vs_RFI(UTG/HJ); vs_3bet.
- *   BTN: RFI; vs_RFI(UTG/HJ/CO); vs_3bet; squeeze.
- *   SB:  RFI(steal/complete); vs_RFI(any earlier); vs_3bet; blind_defense.
+ *   UTG: RFI; vs_3bet from any later position.
+ *   HJ:  RFI; vs_RFI(UTG); vs_3bet; vs_4bet(UTG).
+ *   CO:  RFI; vs_RFI(UTG/HJ); vs_3bet; vs_4bet(UTG/HJ).
+ *   BTN: RFI; vs_RFI(UTG/HJ/CO); vs_3bet; vs_4bet; squeeze.
+ *   SB:  RFI(steal/complete); vs_RFI(any earlier); vs_3bet; vs_4bet;
+ *        blind_defense.
  *   BB:  blind_defense(any earlier); squeeze; vs_4bet after BB has 3-bet.
+ *
+ * This function only models legal action order. It never supplies strategy:
+ * sandbox availability still requires an actual RangeNode from source data.
  */
 export function legalScenarios(hero: Position): LegalScenario[] {
   const earlier = earlierPositions(hero);
@@ -40,23 +45,28 @@ export function legalScenarios(hero: Position): LegalScenario[] {
   switch (hero) {
     case 'UTG':
       out.push({ scenario: 'RFI', villainPositions: [] });
+      out.push({ scenario: 'vs_3bet', villainPositions: later });
       break;
 
     case 'HJ':
       out.push({ scenario: 'RFI', villainPositions: [] });
+      out.push({ scenario: 'vs_RFI', villainPositions: earlier });
       out.push({ scenario: 'vs_3bet', villainPositions: later });
+      out.push({ scenario: 'vs_4bet', villainPositions: earlier });
       break;
 
     case 'CO':
       out.push({ scenario: 'RFI', villainPositions: [] });
       out.push({ scenario: 'vs_RFI', villainPositions: earlier });
       out.push({ scenario: 'vs_3bet', villainPositions: later });
+      out.push({ scenario: 'vs_4bet', villainPositions: earlier });
       break;
 
     case 'BTN':
       out.push({ scenario: 'RFI', villainPositions: [] });
       out.push({ scenario: 'vs_RFI', villainPositions: earlier });
       out.push({ scenario: 'vs_3bet', villainPositions: later });
+      out.push({ scenario: 'vs_4bet', villainPositions: earlier });
       out.push({ scenario: 'squeeze', villainPositions: earlier });
       break;
 
@@ -64,6 +74,7 @@ export function legalScenarios(hero: Position): LegalScenario[] {
       out.push({ scenario: 'RFI', villainPositions: [] }); // steal / complete
       out.push({ scenario: 'vs_RFI', villainPositions: earlier });
       out.push({ scenario: 'vs_3bet', villainPositions: later });
+      out.push({ scenario: 'vs_4bet', villainPositions: earlier });
       out.push({ scenario: 'blind_defense', villainPositions: earlier });
       break;
 
