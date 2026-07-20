@@ -3,9 +3,9 @@
 // frequency bar for the hand, stat tiles, one coaching line, and "Next hand".
 // =============================================================================
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import type { DecisionResult, RangeNode } from '../types';
-import { colors, radius, spacing, verdictColor } from '../theme';
+import { colors, glow, radius, spacing, verdictColor } from '../theme';
 import { AppText, Button } from './primitives';
 import { FrequencyBar } from './FrequencyBar';
 import { StatTile } from './StatTile';
@@ -52,26 +52,45 @@ export function FeedbackOverlay({
   nextLabel?: string;
 }) {
   const [rangeVisible, setRangeVisible] = useState(autoOpenRange);
+  const { width, height } = useWindowDimensions();
+  const wideLayout = width >= 900 && height >= 650;
   const vc = verdictColor[result.grade.verdict];
   const scoreText = (result.grade.score > 0 ? '+' : '') + String(result.grade.score);
   const evText = result.grade.evLoss === null ? '—' : `${result.grade.evLoss.toFixed(2)}`;
   const bestText = result.grade.bestActions.map(actionLabel).join(' / ') || '—';
 
   return (
-    <View style={styles.wrap}>
-      <View style={[styles.sheet, { borderTopColor: vc }]}>
-        <View style={styles.handle} />
+    <View style={[styles.wrap, wideLayout ? styles.wrapWide : null]}>
+      <View
+        style={[
+          styles.sheet,
+          wideLayout ? [styles.sheetWide, glow(vc, 24, 0.18)] : null,
+          { borderTopColor: vc },
+        ]}
+      >
+        {!wideLayout ? <View style={styles.handle} /> : null}
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.sheetContent}
         >
-          <View style={[styles.verdictPill, { backgroundColor: vc }]}>
-            <AppText weight="bold" color={colors.bg}>
-              {VERDICT_TITLE[result.grade.verdict]}
-            </AppText>
+          <View style={styles.verdictRow}>
+            <View style={[styles.verdictPill, { backgroundColor: vc }]}>
+              <AppText weight="black" color={colors.bg}>
+                {VERDICT_TITLE[result.grade.verdict]}
+              </AppText>
+            </View>
+            <View style={styles.decisionSummary}>
+              <AppText variant="caption" color={colors.muted}>
+                РУКА {result.hand}
+              </AppText>
+              <AppText weight="bold">Вы выбрали: {actionLabel(result.chosen)}</AppText>
+            </View>
           </View>
 
           <View style={styles.section}>
+            <AppText variant="caption" color={colors.muted} weight="bold">
+              ЧАСТОТЫ ДЕЙСТВИЙ
+            </AppText>
             <FrequencyBar
               frequencies={result.grade.frequencies}
               order={node.actions}
@@ -135,6 +154,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
+  wrapWide: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
   sheet: {
     maxHeight: '88%',
     backgroundColor: colors.surface,
@@ -144,6 +168,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
+  },
+  sheetWide: {
+    width: '100%',
+    maxWidth: 760,
+    maxHeight: '82%',
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
   },
   handle: {
     width: 42,
@@ -157,14 +192,22 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingBottom: spacing.md,
   },
+  verdictRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
   verdictPill: {
-    alignSelf: 'center',
     borderRadius: radius.pill,
     paddingHorizontal: spacing.lg,
-    paddingVertical: 6,
+    paddingVertical: spacing.sm,
   },
+  decisionSummary: { minWidth: 130 },
   section: {
     marginTop: spacing.sm,
+    gap: spacing.sm,
   },
   tiles: {
     flexDirection: 'row',

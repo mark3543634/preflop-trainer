@@ -64,6 +64,11 @@ export function Table({
   width = 320,
   height = 230,
 }: TableProps) {
+  const playScale = mode === 'play' ? Math.min(1.35, Math.max(0.92, width / 360)) : 1;
+  const playerWidth = Math.round(60 * playScale);
+  const avatarSize = Math.round(44 * playScale);
+  const playerIconSize = Math.round(20 * playScale);
+
   return (
     <View style={[styles.wrap, { width, height }]}>
       <View style={styles.felt} />
@@ -86,8 +91,9 @@ export function Table({
             ? { label: villainBadge, tone: 'aggressive' as const }
             : undefined);
         const isSelected = mode === 'picker' && pos === selected;
-        const left = coord.x * width - 30;
-        const top = coord.y * height - 24;
+        const seatWidth = mode === 'play' ? playerWidth : 60;
+        const left = coord.x * width - seatWidth / 2;
+        const top = coord.y * height - 24 * playScale;
 
         if (mode === 'picker') {
           const active = isSelected;
@@ -120,14 +126,21 @@ export function Table({
         const dim = !isHero && !isVillain && actionBadge?.tone !== 'aggressive';
         const tint = avatarPalette[POSITIONS.indexOf(pos) % avatarPalette.length];
         return (
-          <View key={pos} style={[styles.player, { left, top }]}>
+          <View key={pos} style={[styles.player, { left, top, width: playerWidth }]}>
             <View
               style={[
                 styles.avatar,
-                { borderColor: ring, backgroundColor: tint, opacity: dim ? 0.38 : 1 },
+                {
+                  width: avatarSize,
+                  height: avatarSize,
+                  borderRadius: avatarSize / 2,
+                  borderColor: ring,
+                  backgroundColor: tint,
+                  opacity: dim ? 0.38 : 1,
+                },
               ]}
             >
-              <Ionicons name="person" size={20} color={colors.bg} />
+              <Ionicons name="person" size={playerIconSize} color={colors.bg} />
               {pos === 'BTN' ? (
                 <View style={styles.dealer}>
                   <Text style={styles.dealerText}>D</Text>
@@ -135,14 +148,29 @@ export function Table({
               ) : null}
             </View>
             <View style={[styles.nameTag, { opacity: dim ? 0.45 : 1 }]}>
-              <Text style={[styles.name, { color: isHero ? colors.primary : colors.text }]}>
+              <Text
+                style={[
+                  styles.name,
+                  { color: isHero ? colors.primary : colors.text, fontSize: 11 * playScale },
+                ]}
+              >
                 {isHero ? 'Hero' : pos}
               </Text>
-              {stackBB ? <Text style={styles.stack}>{stackBB}bb</Text> : null}
+              {stackBB ? (
+                <Text style={[styles.stack, { fontSize: 10 * playScale }]}>{stackBB}bb</Text>
+              ) : null}
             </View>
             {actionBadge ? (
-              <View style={[styles.badge, badgeToneStyle(actionBadge.tone)]}>
-                <Text style={styles.badgeText}>{actionBadge.label}</Text>
+              <View
+                style={[
+                  styles.badge,
+                  { top: -12 * playScale, paddingHorizontal: 6 * playScale },
+                  badgeToneStyle(actionBadge.tone),
+                ]}
+              >
+                <Text style={[styles.badgeText, { fontSize: 9 * playScale }]}>
+                  {actionBadge.label}
+                </Text>
               </View>
             ) : null}
           </View>
