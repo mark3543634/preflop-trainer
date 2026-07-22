@@ -17,12 +17,14 @@ function isRed(suit: Suit): boolean {
 export function BoardCards({
   cards,
   size = 58,
+  label = 'Флоп',
 }: {
   cards: readonly ConcreteCard[];
   size?: number;
+  label?: string;
 }) {
   return (
-    <View style={styles.row} accessibilityLabel={`Флоп ${cards.join(' ')}`}>
+    <View style={styles.row} accessibilityLabel={`${label} ${cards.join(' ')}`}>
       {cards.map((card) => {
         const rank = card[0];
         const suit = card[1] as Suit;

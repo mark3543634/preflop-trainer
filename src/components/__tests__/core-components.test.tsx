@@ -55,6 +55,26 @@ describe('основные компоненты MVP', () => {
     expect(useSession.getState().session?.length).toBe(15);
   });
 
+  it('запускает тренировку со случайной новой позицией на каждой руке', () => {
+    const view = render(<TrainScreen />);
+    fireEvent.press(view.getByLabelText('Случайная позиция в каждой руке'));
+    expect(view.getByText('Весь стол')).toBeTruthy();
+    expect(view.getByText(/6 позиций · 54 доступных спотов/)).toBeTruthy();
+    expect(view.getByRole('button', { name: 'Начать' }).props.accessibilityState.disabled).toBe(
+      false,
+    );
+    fireEvent.press(view.getByRole('button', { name: 'Начать' }));
+    const state = useSession.getState();
+    expect(state.meta?.randomPosition).toBe(true);
+    const heroes = state.session?.plan.map(
+      (item) => state.session?.nodeFor(item.providerId, item.nodeId)?.hero,
+    );
+    expect(new Set(heroes).size).toBeGreaterThan(1);
+    for (let i = 1; i < (heroes?.length ?? 0); i += 1) {
+      expect(heroes?.[i]).not.toBe(heroes?.[i - 1]);
+    }
+  });
+
   it('сохраняет именованный provider-aware пресет', () => {
     const view = render(<TrainScreen />);
     fireEvent.press(view.getByLabelText('Позиция BTN'));
@@ -100,9 +120,29 @@ describe('основные компоненты MVP', () => {
   it('показывает ответ и equity после выбора в чтении диапазонов', () => {
     const view = render(<RangeReadingScreen />);
     expect(view.getByText('Чей диапазон лучше попал во флоп?')).toBeTruthy();
+    expect(view.getByRole('button', { name: 'Сгенерировать случайный флоп' })).toBeTruthy();
     fireEvent.press(view.getByRole('button', { name: 'UTG · рейзер' }));
     expect(view.getByText(/Ответ по расчёту:/)).toBeTruthy();
     expect(view.getByRole('button', { name: 'СЛЕДУЮЩИЙ ФЛОП' })).toBeTruthy();
+  });
+
+  it('проводит режим с рукой через выбор цели ставки без выдуманной GTO-оценки', () => {
+    const view = render(<RangeReadingScreen />);
+    fireEvent.press(view.getByRole('button', { name: 'Диапазон + рука' }));
+    expect(view.getByText(/ВАША РУКА · UTG/)).toBeTruthy();
+    expect(view.getByLabelText(/^Карты героя /)).toBeTruthy();
+
+    fireEvent.press(view.getByRole('button', { name: 'UTG · рейзер' }));
+    fireEvent.press(view.getByRole('button', { name: 'К РЕШЕНИЮ НА ФЛОПЕ' }));
+    expect(view.getByText('Решение с вашей рукой')).toBeTruthy();
+    expect(view.getByRole('button', { name: 'Ставка — добор с более слабых' })).toBeTruthy();
+    expect(view.getByRole('button', { name: 'Ставка — защита' })).toBeTruthy();
+    expect(view.getByRole('button', { name: 'Не ставить — чек' })).toBeTruthy();
+
+    fireEvent.press(view.getByRole('button', { name: 'Ставка — защита' }));
+    expect(view.getByText('ВАШ ВЫБОР')).toBeTruthy();
+    expect(view.getByText(/ШОУДАУН-EQUITY РУКИ/)).toBeTruthy();
+    expect(view.getByText(/не называет её правильной или ошибочной/)).toBeTruthy();
   });
 
   it('рисует 13x13 heatmap из данных узла', () => {

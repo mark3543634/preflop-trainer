@@ -7,7 +7,13 @@
 // can never look playable or be silently skipped from a position mix.
 // =============================================================================
 import { legalScenarios, isLegalScenario } from './scenarios';
-import { POSITIONS, type GameFormat, type Position, type RangeNode, type ScenarioType } from '../types';
+import {
+  POSITIONS,
+  type GameFormat,
+  type Position,
+  type RangeNode,
+  type ScenarioType,
+} from '../types';
 
 export interface SandboxScope {
   format: GameFormat;
@@ -72,6 +78,17 @@ export function availableSandboxPositions(
   );
   return ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'].filter((position): position is Position =>
     positions.has(position as Position),
+  );
+}
+
+/** Every shipped, legal node for a table/stack, across all hero positions. */
+export function sandboxNodesForTable(
+  nodes: RangeNode[],
+  format: GameFormat,
+  stackBB: number,
+): RangeNode[] {
+  return uniqueNodes(
+    POSITIONS.flatMap((hero) => sandboxNodesInScope(nodes, { format, stackBB, hero })),
   );
 }
 

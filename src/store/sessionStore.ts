@@ -4,7 +4,13 @@
 // stats / review stores. UI never touches the engine directly.
 // =============================================================================
 import { create } from 'zustand';
-import { Session, planSession, shouldEndExam, type PlannedHand } from '../engine/session';
+import {
+  Session,
+  planPositionSession,
+  planSession,
+  shouldEndExam,
+  type PlannedHand,
+} from '../engine/session';
 import type { Action, DecisionResult, ProviderId, RangeNode, SessionSummary } from '../types';
 import { getNode } from '../data/ranges';
 import { useSettings } from './settingsStore';
@@ -19,6 +25,8 @@ export interface SessionMeta {
   origin: SessionOrigin;
   examMode: boolean;
   examMistakeCap?: number;
+  /** Table-wide sandbox mode: choose a different available hero seat per hand. */
+  randomPosition?: boolean;
 }
 
 interface SessionStoreState {
@@ -64,7 +72,9 @@ export const useSession = create<SessionStoreState>((set, get) => ({
   lastMeta: null,
 
   start: (nodes, length, meta) => {
-    const plan = planSession(nodes, length);
+    const plan = meta.randomPosition
+      ? planPositionSession(nodes, length)
+      : planSession(nodes, length);
     get().startWithPlan(nodes, plan, meta);
   },
 

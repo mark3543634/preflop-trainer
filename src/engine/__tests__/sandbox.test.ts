@@ -5,6 +5,7 @@ import {
   missingSandboxSpots,
   resolveSandboxNodes,
   sandboxCoverage,
+  sandboxNodesForTable,
   sandboxScenarioAvailability,
 } from '../sandbox';
 
@@ -17,6 +18,15 @@ describe('sandbox availability', () => {
     expect(positions).toContain('BTN');
     expect(positions).toContain('BB');
     expect(availableSandboxPositions(nodes, 'cash_6max', 40)).toEqual([]);
+  });
+
+  it('builds a table-wide pool for random-position training', () => {
+    const tableNodes = sandboxNodesForTable(allCombinedNodes(), 'cash_6max', 100);
+    expect(tableNodes).toHaveLength(54);
+    expect(new Set(tableNodes.map((node) => node.hero))).toEqual(
+      new Set(['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB']),
+    );
+    expect(new Set(tableNodes.map((node) => node.id)).size).toBe(tableNodes.length);
   });
 
   it('resolves one exact spot without falling back to another node', () => {

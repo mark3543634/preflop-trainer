@@ -10,6 +10,7 @@ export const colors = {
   primary: '#27E0A1', // mint
   primaryDim: '#1B9E74', // mint-dim (for "correct")
   gold: '#F5C451',
+  goldBorder: 'rgba(245,196,81,0.42)',
   danger: '#FF6B6B',
   text: '#F2F4F7',
   muted: '#8A93A2',
