@@ -8,8 +8,15 @@ import { AppText, Card } from '../../src/components/primitives';
 import { RANGE_READING_SCENARIOS } from '../../src/data/rangeReading';
 import { getCombinedNode } from '../../src/data/ranges';
 import {
+  estimateHandVsRangeEquity,
   estimateRangeEquity,
+  randomFlop,
   RANGE_EQUITY_TIE_BAND,
+  sampleActionCombo,
+  seededRandom,
+  type ConcreteCombo,
+  type Flop,
+  type HandVsRangeEquityResult,
   type RangeEquityResult,
   type RangeReadingAnswer,
 } from '../../src/engine/rangeEquity';
@@ -21,15 +28,51 @@ const ANSWER_LABELS: Record<RangeReadingAnswer, string> = {
   defender: 'Коллер',
 };
 
+type ReadingMode = 'ranges' | 'hand';
+type DecisionStage = 'range' | 'purpose';
+type BetPurpose = 'value' | 'protection' | 'check';
+
+const PURPOSE_LABELS: Record<BetPurpose, string> = {
+  value: 'Ставка — добор с более слабых',
+  protection: 'Ставка — защита',
+  check: 'Не ставить — чек',
+};
+
+/** Stable simulation seed for one randomly dealt board. */
+function seedForFlop(flop: Flop, question: number): number {
+  let hash = (2166136261 ^ question) >>> 0;
+  for (const card of flop) {
+    for (const character of card) {
+      hash ^= character.charCodeAt(0);
+      hash = Math.imul(hash, 16777619) >>> 0;
+    }
+  }
+  return hash;
+}
+
 export default function RangeReadingScreen() {
   const router = useRouter();
   const [questionIndex, setQuestionIndex] = useState(0);
   const [chosen, setChosen] = useState<RangeReadingAnswer | null>(null);
   const [correct, setCorrect] = useState(0);
   const [answered, setAnswered] = useState(0);
+  const [flop, setFlop] = useState<Flop>(() => randomFlop());
+  const [mode, setMode] = useState<ReadingMode>('ranges');
+  const [stage, setStage] = useState<DecisionStage>('range');
+  const [purpose, setPurpose] = useState<BetPurpose | null>(null);
   const scenario = RANGE_READING_SCENARIOS[questionIndex % RANGE_READING_SCENARIOS.length];
   const openerNode = getCombinedNode(scenario.openerNodeId);
   const defenderNode = getCombinedNode(scenario.defenderNodeId);
+
+  const heroCards = useMemo<ConcreteCombo | null>(() => {
+    if (!openerNode) return null;
+    return sampleActionCombo(
+      openerNode,
+      'raise',
+      flop,
+      seededRandom(seedForFlop(flop, questionIndex) ^ 0x9e3779b9),
+    );
+  }, [flop, openerNode, questionIndex]);
 
   const result = useMemo<RangeEquityResult | null>(() => {
     if (!openerNode || !defenderNode) return null;
@@ -39,14 +82,30 @@ export default function RangeReadingScreen() {
         openerAction: 'raise',
         defenderNode,
         defenderAction: 'call',
-        flop: scenario.flop,
+        flop,
         iterations: 2500,
-        seed: scenario.seed,
+        seed: seedForFlop(flop, questionIndex),
       });
     } catch {
       return null;
     }
-  }, [defenderNode, openerNode, scenario]);
+  }, [defenderNode, flop, openerNode, questionIndex]);
+
+  const handEquity = useMemo<HandVsRangeEquityResult | null>(() => {
+    if (mode !== 'hand' || !heroCards || !defenderNode) return null;
+    try {
+      return estimateHandVsRangeEquity({
+        heroCards,
+        villainNode: defenderNode,
+        villainAction: 'call',
+        flop,
+        iterations: 1800,
+        seed: seedForFlop(flop, questionIndex) ^ 0x85ebca6b,
+      });
+    } catch {
+      return null;
+    }
+  }, [defenderNode, flop, heroCards, mode, questionIndex]);
 
   function answer(value: RangeReadingAnswer): void {
     if (chosen || !result) return;
@@ -57,7 +116,24 @@ export default function RangeReadingScreen() {
 
   function next(): void {
     setChosen(null);
-    setQuestionIndex((index) => (index + 1) % RANGE_READING_SCENARIOS.length);
+    setStage('range');
+    setPurpose(null);
+    setFlop(randomFlop());
+    setQuestionIndex((index) => index + 1);
+  }
+
+  function rerollFlop(): void {
+    setChosen(null);
+    setStage('range');
+    setPurpose(null);
+    setFlop(randomFlop());
+  }
+
+  function chooseMode(nextMode: ReadingMode): void {
+    setMode(nextMode);
+    setChosen(null);
+    setStage('range');
+    setPurpose(null);
   }
 
   function openRange(nodeId: string, providerId: string): void {
@@ -93,10 +169,25 @@ export default function RangeReadingScreen() {
         </View>
       </View>
 
+      <View style={styles.modeSelector}>
+        <ModeButton
+          label="Только диапазоны"
+          description="Определить преимущество диапазона"
+          selected={mode === 'ranges'}
+          onPress={() => chooseMode('ranges')}
+        />
+        <ModeButton
+          label="Диапазон + рука"
+          description="Затем выбрать ставку и её цель"
+          selected={mode === 'hand'}
+          onPress={() => chooseMode('hand')}
+        />
+      </View>
+
       <Card style={styles.storyCard}>
         <View style={styles.questionMeta}>
           <AppText variant="caption" color={colors.muted}>
-            ВОПРОС {questionIndex + 1} ИЗ {RANGE_READING_SCENARIOS.length}
+            ВОПРОС {questionIndex + 1}
           </AppText>
           <AppText variant="caption" color={colors.muted}>
             100 BB · Cash 6-max
@@ -110,11 +201,38 @@ export default function RangeReadingScreen() {
           <ActionArrow label="КОЛЛ" last />
         </View>
 
+        {mode === 'hand' && heroCards ? (
+          <View style={styles.heroHandBlock}>
+            <View style={styles.heroHandCopy}>
+              <AppText variant="caption" weight="bold" color={colors.primary}>
+                ВАША РУКА · {scenario.opener}
+              </AppText>
+              <AppText variant="caption" color={colors.muted}>
+                После оценки диапазонов вы выберете действие на флопе
+              </AppText>
+            </View>
+            <BoardCards cards={heroCards} size={48} label="Карты героя" />
+          </View>
+        ) : null}
+
         <View style={styles.flopBlock}>
-          <AppText variant="caption" weight="bold" color={colors.muted} center>
-            ФЛОП
-          </AppText>
-          <BoardCards cards={scenario.flop} />
+          <View style={styles.flopHeader}>
+            <AppText variant="caption" weight="bold" color={colors.muted}>
+              СЛУЧАЙНЫЙ ФЛОП · 22 100 ВАРИАНТОВ
+            </AppText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Сгенерировать случайный флоп"
+              onPress={rerollFlop}
+              style={styles.rerollButton}
+            >
+              <Ionicons name="shuffle" size={16} color={colors.primary} />
+              <AppText variant="caption" weight="bold" color={colors.primary}>
+                ЕЩЁ
+              </AppText>
+            </Pressable>
+          </View>
+          <BoardCards cards={flop} />
         </View>
 
         <AppText variant="title" weight="black" center>
@@ -141,6 +259,88 @@ export default function RangeReadingScreen() {
             onPress={() => answer('defender')}
           />
         </View>
+      ) : mode === 'hand' && stage === 'purpose' ? (
+        <Card style={styles.purposeCard}>
+          <View style={styles.purposeHeader}>
+            <View style={styles.purposeNumber}>
+              <AppText weight="black" color={colors.bg}>
+                2
+              </AppText>
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <AppText variant="title" weight="black">
+                Решение с вашей рукой
+              </AppText>
+              <AppText variant="caption" color={colors.muted}>
+                Вы играете за {scenario.opener} после колла от {scenario.defender}
+              </AppText>
+            </View>
+          </View>
+
+          {purpose === null ? (
+            <>
+              <AppText weight="bold">Какую линию вы выбираете на этом флопе?</AppText>
+              <PurposeButton
+                icon="cash-outline"
+                label={PURPOSE_LABELS.value}
+                description="Хотим получить колл от рук слабее нашей"
+                onPress={() => setPurpose('value')}
+              />
+              <PurposeButton
+                icon="shield-checkmark-outline"
+                label={PURPOSE_LABELS.protection}
+                description="Хотим лишить более слабые руки их будущего equity"
+                onPress={() => setPurpose('protection')}
+              />
+              <PurposeButton
+                icon="pause-outline"
+                label={PURPOSE_LABELS.check}
+                description="Не ставим на флопе и сохраняем весь диапазон чека"
+                onPress={() => setPurpose('check')}
+              />
+            </>
+          ) : (
+            <>
+              <View style={styles.purposeChosen}>
+                <Ionicons name="checkmark-circle" size={26} color={colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <AppText variant="caption" color={colors.muted}>
+                    ВАШ ВЫБОР
+                  </AppText>
+                  <AppText weight="black">{PURPOSE_LABELS[purpose]}</AppText>
+                </View>
+              </View>
+
+              {handEquity ? (
+                <View style={styles.handEquityCard}>
+                  <AppText variant="caption" color={colors.muted}>
+                    ШОУДАУН-EQUITY РУКИ ПРОТИВ ДИАПАЗОНА КОЛЛА
+                  </AppText>
+                  <AppText weight="black" color={colors.primary} style={styles.handEquityValue}>
+                    {(handEquity.heroEquity * 100).toFixed(1)}%
+                  </AppText>
+                  <AppText variant="caption" color={colors.muted}>
+                    Расчёт по {handEquity.iterations.toLocaleString('ru-RU')} ранаутам без модели
+                    будущих ставок и фолдов.
+                  </AppText>
+                </View>
+              ) : null}
+
+              <View style={styles.honestNote}>
+                <Ionicons name="information-circle-outline" size={20} color={colors.gold} />
+                <AppText variant="caption" color={colors.muted} style={{ flex: 1 }}>
+                  Цель зафиксирована для разбора. Приложение не называет её правильной или
+                  ошибочной: для GTO-оценки ставки нужны отдельные postflop solver-данные.
+                </AppText>
+              </View>
+              <Pressable accessibilityRole="button" onPress={next} style={styles.nextButton}>
+                <AppText weight="black" color={colors.bg} style={{ fontSize: 17 }}>
+                  СЛЕДУЮЩАЯ РАЗДАЧА
+                </AppText>
+              </Pressable>
+            </>
+          )}
+        </Card>
       ) : (
         <Card style={[styles.feedback, chosen === result.answer ? styles.good : styles.bad]}>
           <View style={styles.feedbackHead}>
@@ -197,9 +397,13 @@ export default function RangeReadingScreen() {
               <AppText weight="bold">Диапазон {scenario.defender}</AppText>
             </Pressable>
           </View>
-          <Pressable accessibilityRole="button" onPress={next} style={styles.nextButton}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => (mode === 'hand' ? setStage('purpose') : next())}
+            style={styles.nextButton}
+          >
             <AppText weight="black" color={colors.bg} style={{ fontSize: 17 }}>
-              СЛЕДУЮЩИЙ ФЛОП
+              {mode === 'hand' ? 'К РЕШЕНИЮ НА ФЛОПЕ' : 'СЛЕДУЮЩИЙ ФЛОП'}
             </AppText>
           </Pressable>
         </Card>
@@ -213,6 +417,72 @@ export default function RangeReadingScreen() {
         </AppText>
       </Card>
     </ScrollView>
+  );
+}
+
+function ModeButton({
+  label,
+  description,
+  selected,
+  onPress,
+}: {
+  label: string;
+  description: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={[styles.modeButton, selected ? styles.modeButtonSelected : null]}
+    >
+      <Ionicons
+        name={selected ? 'radio-button-on' : 'radio-button-off'}
+        size={19}
+        color={selected ? colors.primary : colors.muted}
+      />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <AppText weight="bold">{label}</AppText>
+        <AppText variant="caption" color={colors.muted}>
+          {description}
+        </AppText>
+      </View>
+    </Pressable>
+  );
+}
+
+function PurposeButton({
+  icon,
+  label,
+  description,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  description: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [styles.purposeButton, pressed ? { opacity: 0.82 } : null]}
+    >
+      <View style={styles.purposeIcon}>
+        <Ionicons name={icon} size={21} color={colors.primary} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <AppText weight="black">{label}</AppText>
+        <AppText variant="caption" color={colors.muted}>
+          {description}
+        </AppText>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+    </Pressable>
   );
 }
 
@@ -292,6 +562,21 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   headingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  modeSelector: { flexDirection: 'row', gap: spacing.sm },
+  modeButton: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.button,
+    backgroundColor: colors.surface,
+  },
+  modeButtonSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   scoreChip: {
     minWidth: 70,
     alignItems: 'center',
@@ -320,7 +605,36 @@ const styles = StyleSheet.create({
   },
   positionActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   actionStep: { alignItems: 'center', gap: 2 },
+  heroHandBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
+  },
+  heroHandCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
   flopBlock: { gap: spacing.sm, paddingVertical: spacing.sm },
+  flopHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  rerollButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    minHeight: 36,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
+  },
   answers: { gap: spacing.sm },
   answerButton: {
     minHeight: 56,
@@ -333,6 +647,60 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   unavailable: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  purposeCard: { gap: spacing.md, borderWidth: 1, borderColor: colors.primaryBorder },
+  purposeHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  purposeNumber: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+  },
+  purposeButton: {
+    minHeight: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bg,
+  },
+  purposeIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
+  },
+  purposeChosen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.button,
+    backgroundColor: colors.primarySoft,
+  },
+  handEquityCard: {
+    alignItems: 'center',
+    gap: spacing.xs,
+    padding: spacing.lg,
+    borderRadius: radius.button,
+    backgroundColor: colors.bg,
+  },
+  handEquityValue: { fontSize: 36, lineHeight: 42 },
+  honestNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.goldBorder,
+  },
   feedback: { gap: spacing.lg, borderWidth: 1 },
   good: { borderColor: colors.primaryBorder },
   bad: { borderColor: colors.dangerBorder },

@@ -1,5 +1,6 @@
 import {
   planSession,
+  planPositionSession,
   sampleWeightedHand,
   summarize,
   runningGtoScore,
@@ -58,7 +59,9 @@ describe('sampleWeightedHand', () => {
   });
 
   it('respects data-derived reach weights', () => {
-    const reachWeights = Object.fromEntries(allHands().map((hand) => [hand, hand === 'AA' ? 1 : 0]));
+    const reachWeights = Object.fromEntries(
+      allHands().map((hand) => [hand, hand === 'AA' ? 1 : 0]),
+    );
     const rng = mulberry32(123);
     for (let i = 0; i < 100; i++) {
       expect(sampleWeightedHand(rng, reachWeights)).toBe('AA');
@@ -94,6 +97,32 @@ describe('planSession', () => {
   });
 });
 
+describe('planPositionSession', () => {
+  const positionNodes: RangeNode[] = (['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'] as const).map(
+    (hero) => ({ ...testNode, id: `node_${hero}`, hero }),
+  );
+
+  it('deals exactly N hands and uses every available position over time', () => {
+    const plan = planPositionSession(positionNodes, 60, mulberry32(91));
+    const heroByNode = new Map(positionNodes.map((node) => [node.id, node.hero]));
+    const positions = plan.map((item) => heroByNode.get(item.nodeId));
+    expect(plan).toHaveLength(60);
+    expect(new Set(positions)).toEqual(new Set(['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB']));
+  });
+
+  it('does not repeat the same hero position on consecutive hands', () => {
+    const plan = planPositionSession(positionNodes, 100, mulberry32(17));
+    const heroByNode = new Map(positionNodes.map((node) => [node.id, node.hero]));
+    for (let i = 1; i < plan.length; i += 1) {
+      expect(heroByNode.get(plan[i].nodeId)).not.toBe(heroByNode.get(plan[i - 1].nodeId));
+    }
+  });
+
+  it('returns an empty plan when no trainable positions are supplied', () => {
+    expect(planPositionSession([], 15, mulberry32(2))).toEqual([]);
+  });
+});
+
 describe('summarize / runningGtoScore', () => {
   function res(score: number, verdict: Grade['verdict'], evLoss: number | null): DecisionResult {
     return {
@@ -111,11 +140,7 @@ describe('summarize / runningGtoScore', () => {
   });
 
   it('aggregates EV loss and collects mistakes', () => {
-    const results = [
-      res(100, 'best', 0),
-      res(-50, 'blunder', 3),
-      res(0, 'inaccuracy', 1.5),
-    ];
+    const results = [res(100, 'best', 0), res(-50, 'blunder', 3), res(0, 'inaccuracy', 1.5)];
     const s = summarize(results);
     expect(s.handsPlayed).toBe(3);
     expect(s.totalEvLoss).toBeCloseTo(4.5, 5);

@@ -10,9 +10,11 @@ import type {
   Action,
   DecisionResult,
   HandKey,
+  Position,
   RangeNode,
   SessionSummary,
 } from '../types';
+import { POSITIONS } from '../types';
 import { rangeRefKey } from './rangeRef';
 
 /** A dealt question: which node, which hand. */
@@ -75,6 +77,44 @@ export function planSession(
       nodeId: node.id,
       hand: sampleWeightedHand(rng, node.reachWeights),
     });
+  }
+  return planned;
+}
+
+/**
+ * Plan a table-wide drill with a fresh hero position on every hand.
+ *
+ * Positions are sampled uniformly, rather than indirectly through their node
+ * counts, so a position with more imported spots is not overrepresented. When
+ * more than one position is available, the same seat is never dealt twice in a
+ * row. Strategy and reach frequencies still come exclusively from RangeNodes.
+ */
+export function planPositionSession(
+  nodes: RangeNode[],
+  length: number,
+  rng: Rng = defaultRng,
+): PlannedHand[] {
+  const buckets = POSITIONS.map((position) => ({
+    position,
+    nodes: nodes.filter((node) => node.hero === position),
+  })).filter((bucket) => bucket.nodes.length > 0);
+  if (buckets.length === 0) return [];
+
+  const planned: PlannedHand[] = [];
+  let previousPosition: Position | undefined;
+  for (let i = 0; i < length; i += 1) {
+    const candidates =
+      buckets.length > 1
+        ? buckets.filter((bucket) => bucket.position !== previousPosition)
+        : buckets;
+    const bucket = candidates[Math.floor(rng() * candidates.length) % candidates.length];
+    const node = bucket.nodes[Math.floor(rng() * bucket.nodes.length) % bucket.nodes.length];
+    planned.push({
+      providerId: node.providerId,
+      nodeId: node.id,
+      hand: sampleWeightedHand(rng, node.reachWeights),
+    });
+    previousPosition = bucket.position;
   }
   return planned;
 }

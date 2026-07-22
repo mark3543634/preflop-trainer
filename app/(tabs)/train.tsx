@@ -8,6 +8,7 @@ import {
   availableSandboxPositions,
   resolveSandboxNodes,
   sandboxCoverage,
+  sandboxNodesForTable,
   sandboxScenarioAvailability,
 } from '../../src/engine/sandbox';
 import { allCombinedNodes } from '../../src/data/ranges';
@@ -124,6 +125,7 @@ export default function TrainScreen() {
 
   const [stackBB, setStackBB] = useState<number>(100);
   const [hero, setHero] = useState<Position | null>(null);
+  const [randomPositions, setRandomPositions] = useState(false);
   const [scenario, setScenario] = useState<ScenarioType | null>(null);
   const [villain, setVillain] = useState<Position | null>(null);
   const [mix, setMix] = useState(false);
@@ -155,6 +157,7 @@ export default function TrainScreen() {
     [providerNodes, stackBB, hero],
   );
   const selectedNodes = useMemo(() => {
+    if (randomPositions) return sandboxNodesForTable(providerNodes, FORMAT, stackBB);
     if (!hero) return [];
     return resolveSandboxNodes(providerNodes, {
       format: FORMAT,
@@ -164,20 +167,24 @@ export default function TrainScreen() {
       scenario: scenario ?? undefined,
       villainPosition: villain ?? undefined,
     });
-  }, [providerNodes, stackBB, hero, mix, scenario, villain]);
+  }, [providerNodes, stackBB, hero, mix, scenario, villain, randomPositions]);
 
-  const selectedNode = !mix ? selectedNodes[0] : undefined;
+  const selectedNode = !mix && !randomPositions ? selectedNodes[0] : undefined;
   const canLaunch = selectedNodes.length > 0;
-  const selectionTitle = hero
-    ? mix
-      ? `${hero} · Микс всей позиции`
-      : scenario
-        ? spotTitle(hero, scenario, villain ?? undefined)
-        : `${hero} · выберите сценарий`
-    : 'Выберите позицию';
+  const selectionTitle = randomPositions
+    ? 'Случайная позиция · каждая рука'
+    : hero
+      ? mix
+        ? `${hero} · Микс всей позиции`
+        : scenario
+          ? spotTitle(hero, scenario, villain ?? undefined)
+          : `${hero} · выберите сценарий`
+      : 'Выберите позицию';
   const completedSteps = canLaunch ? 3 : hero ? 2 : 1;
   const footerHint = canLaunch
-    ? `${length} решений · ${selectedNodes.length} ${selectedNodes.length === 1 ? 'спот' : 'спотов'}`
+    ? randomPositions
+      ? `${length} решений · ${availablePositions.length} позиций · ${selectedNodes.length} спотов`
+      : `${length} решений · ${selectedNodes.length} ${selectedNodes.length === 1 ? 'спот' : 'спотов'}`
     : !hero
       ? 'Выберите позицию за столом'
       : scenario && villainOptions.length > 0 && !villain
@@ -186,9 +193,19 @@ export default function TrainScreen() {
 
   function resetSpot(): void {
     setHero(null);
+    setRandomPositions(false);
     setScenario(null);
     setVillain(null);
     setMix(false);
+  }
+
+  function chooseRandomPositions(): void {
+    setRandomPositions(true);
+    setHero(null);
+    setScenario(null);
+    setVillain(null);
+    setMix(false);
+    pendingScenarioScrollRef.current = true;
   }
 
   function chooseStack(next: number): void {
@@ -215,7 +232,7 @@ export default function TrainScreen() {
   }
 
   function launch(): void {
-    if (!hero || selectedNodes.length === 0) {
+    if (selectedNodes.length === 0) {
       Alert.alert('Спот не готов', 'Выберите комбинацию, для которой в наборе есть данные.');
       return;
     }
@@ -224,12 +241,13 @@ export default function TrainScreen() {
       origin: 'sandbox',
       examMode,
       examMistakeCap,
+      randomPosition: randomPositions,
     });
     router.push('/training');
   }
 
   function openPresetModal(): void {
-    if (!canLaunch) return;
+    if (!canLaunch || randomPositions) return;
     setPresetName(selectionTitle);
     setPresetModalOpen(true);
   }
@@ -309,7 +327,11 @@ export default function TrainScreen() {
         <View style={styles.stepper}>
           <StepBadge number={1} label="Стол" state="done" />
           <View style={styles.stepLine} />
-          <StepBadge number={2} label="Позиция" state={hero ? 'done' : 'current'} />
+          <StepBadge
+            number={2}
+            label="Позиция"
+            state={hero || randomPositions ? 'done' : 'current'}
+          />
           <View style={styles.stepLine} />
           <StepBadge
             number={3}
@@ -355,13 +377,49 @@ export default function TrainScreen() {
         </GlowCard>
 
         <SectionLabel text="2 · Ваша позиция" />
-        <GlowCard active={hero !== null}>
+        <GlowCard active={hero !== null || randomPositions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Случайная позиция в каждой руке"
+            accessibilityState={{ selected: randomPositions }}
+            onPress={chooseRandomPositions}
+            style={[styles.randomSeatCard, randomPositions ? styles.randomSeatCardSelected : null]}
+          >
+            <View
+              style={[styles.randomSeatIcon, randomPositions ? styles.randomSeatIconActive : null]}
+            >
+              <Ionicons
+                name="dice-outline"
+                size={23}
+                color={randomPositions ? colors.bg : colors.primary}
+              />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <AppText weight="black">Случайная позиция</AppText>
+              <AppText variant="caption" color={colors.muted}>
+                Новая позиция и новый доступный спот перед каждой рукой
+              </AppText>
+            </View>
+            {randomPositions ? (
+              <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+            ) : (
+              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+            )}
+          </Pressable>
+          <View style={styles.orDivider}>
+            <View style={styles.orLine} />
+            <AppText variant="caption" color={colors.muted}>
+              ИЛИ ВЫБЕРИТЕ МЕСТО
+            </AppText>
+            <View style={styles.orLine} />
+          </View>
           <Table
             mode="picker"
             hero={hero ?? 'BTN'}
             selected={hero ?? undefined}
             availablePositions={availablePositions}
             onSelectSeat={(position) => {
+              setRandomPositions(false);
               setHero(position);
               setScenario(null);
               setVillain(null);
@@ -372,13 +430,15 @@ export default function TrainScreen() {
             height={190}
           />
           <AppText variant="caption" color={colors.muted} center>
-            {hero
-              ? `Герой: ${hero} · доступно ${coverage?.available ?? 0} спотов`
-              : 'Нажмите доступное место. Замок означает, что в паке нет данных.'}
+            {randomPositions
+              ? `Режим включён · в сессии участвуют ${availablePositions.length} позиций`
+              : hero
+                ? `Герой: ${hero} · доступно ${coverage?.available ?? 0} спотов`
+                : 'Нажмите доступное место. Замок означает, что в паке нет данных.'}
           </AppText>
         </GlowCard>
 
-        {hero ? (
+        {hero || randomPositions ? (
           <View
             style={styles.scenarioSection}
             onLayout={(event) => {
@@ -390,87 +450,116 @@ export default function TrainScreen() {
           >
             <SectionLabel text="3 · Сценарий" />
             <GlowCard active={canLaunch}>
-              {scenarioOptions.map((option) => {
-                const meta = SCENARIO_META[option.scenario];
-                const selected = !mix && scenario === option.scenario;
-                return (
-                  <View key={option.scenario}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`${meta.title}${option.available ? '' : ', нет данных'}`}
-                      accessibilityState={{ selected, disabled: !option.available }}
-                      disabled={!option.available}
-                      onPress={() => chooseScenario(option.scenario)}
-                      style={[
-                        styles.scenarioRow,
-                        selected ? styles.scenarioRowSelected : null,
-                        !option.available ? styles.disabled : null,
-                      ]}
-                    >
-                      <Ionicons
-                        name={meta.icon}
-                        size={21}
-                        color={selected ? colors.primary : colors.muted}
-                      />
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <AppText weight={selected ? 'bold' : 'semibold'}>{meta.title}</AppText>
-                        <AppText variant="caption" color={colors.muted}>
-                          {meta.desc} · {option.availableNodeCount}/{option.legalNodeCount} в наборе
-                        </AppText>
-                      </View>
-                      {option.available ? (
-                        <Ionicons name="chevron-forward" size={16} color={colors.muted} />
-                      ) : (
-                        <Ionicons name="lock-closed" size={14} color={colors.muted} />
-                      )}
-                    </Pressable>
-
-                    {selected && villainOptions.length > 0 ? (
-                      <View style={styles.villainRow}>
-                        <AppText variant="caption" color={colors.muted} weight="bold">
-                          {meta.villainLabel.toUpperCase()}
-                        </AppText>
-                        <View style={styles.rowWrap}>
-                          {villainOptions.map((position) => {
-                            const available = option.availableVillainPositions.includes(position);
-                            return (
-                              <MiniChip
-                                key={position}
-                                label={`${position}${available ? '' : ' · нет данных'}`}
-                                selected={villain === position}
-                                disabled={!available}
-                                onPress={() => setVillain(position)}
-                              />
-                            );
-                          })}
-                        </View>
-                      </View>
-                    ) : null}
+              {randomPositions ? (
+                <View style={styles.randomModeSummary}>
+                  <View style={styles.randomModeBadge}>
+                    <Ionicons name="shuffle" size={24} color={colors.bg} />
                   </View>
-                );
-              })}
+                  <View style={{ flex: 1, minWidth: 0, gap: spacing.xs }}>
+                    <AppText variant="title" weight="black">
+                      Весь стол
+                    </AppText>
+                    <AppText color={colors.muted}>
+                      Перед каждой рукой приложение случайно выберет позицию, доступный сценарий и
+                      оппонента. Соседние руки всегда будут на разных позициях.
+                    </AppText>
+                    <AppText variant="caption" weight="bold" color={colors.primary}>
+                      {availablePositions.length} позиций · {selectedNodes.length} доступных спотов
+                    </AppText>
+                  </View>
+                </View>
+              ) : (
+                <>
+                  {scenarioOptions.map((option) => {
+                    const meta = SCENARIO_META[option.scenario];
+                    const selected = !mix && scenario === option.scenario;
+                    return (
+                      <View key={option.scenario}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`${meta.title}${option.available ? '' : ', нет данных'}`}
+                          accessibilityState={{ selected, disabled: !option.available }}
+                          disabled={!option.available}
+                          onPress={() => chooseScenario(option.scenario)}
+                          style={[
+                            styles.scenarioRow,
+                            selected ? styles.scenarioRowSelected : null,
+                            !option.available ? styles.disabled : null,
+                          ]}
+                        >
+                          <Ionicons
+                            name={meta.icon}
+                            size={21}
+                            color={selected ? colors.primary : colors.muted}
+                          />
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <AppText weight={selected ? 'bold' : 'semibold'}>{meta.title}</AppText>
+                            <AppText variant="caption" color={colors.muted}>
+                              {meta.desc} · {option.availableNodeCount}/{option.legalNodeCount} в
+                              наборе
+                            </AppText>
+                          </View>
+                          {option.available ? (
+                            <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+                          ) : (
+                            <Ionicons name="lock-closed" size={14} color={colors.muted} />
+                          )}
+                        </Pressable>
 
-              <View style={styles.mixDivider} />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Микс всей позиции"
-                accessibilityState={{ selected: mix, disabled: (coverage?.available ?? 0) === 0 }}
-                disabled={(coverage?.available ?? 0) === 0}
-                onPress={chooseMix}
-                style={[styles.mixCard, mix ? styles.mixCardSelected : null]}
-              >
-                <View style={styles.mixIcon}>
-                  <Ionicons name="shuffle" size={20} color={mix ? colors.bg : colors.primary} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <AppText weight="bold">Микс всей позиции</AppText>
-                  <AppText variant="caption" color={colors.muted}>
-                    Все {coverage?.available ?? 0} доступных спотов; покрытие{' '}
-                    {coverage?.available ?? 0}/{coverage?.legal ?? 0}
-                  </AppText>
-                </View>
-                {mix ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} /> : null}
-              </Pressable>
+                        {selected && villainOptions.length > 0 ? (
+                          <View style={styles.villainRow}>
+                            <AppText variant="caption" color={colors.muted} weight="bold">
+                              {meta.villainLabel.toUpperCase()}
+                            </AppText>
+                            <View style={styles.rowWrap}>
+                              {villainOptions.map((position) => {
+                                const available =
+                                  option.availableVillainPositions.includes(position);
+                                return (
+                                  <MiniChip
+                                    key={position}
+                                    label={`${position}${available ? '' : ' · нет данных'}`}
+                                    selected={villain === position}
+                                    disabled={!available}
+                                    onPress={() => setVillain(position)}
+                                  />
+                                );
+                              })}
+                            </View>
+                          </View>
+                        ) : null}
+                      </View>
+                    );
+                  })}
+
+                  <View style={styles.mixDivider} />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Микс всей позиции"
+                    accessibilityState={{
+                      selected: mix,
+                      disabled: (coverage?.available ?? 0) === 0,
+                    }}
+                    disabled={(coverage?.available ?? 0) === 0}
+                    onPress={chooseMix}
+                    style={[styles.mixCard, mix ? styles.mixCardSelected : null]}
+                  >
+                    <View style={styles.mixIcon}>
+                      <Ionicons name="shuffle" size={20} color={mix ? colors.bg : colors.primary} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <AppText weight="bold">Микс всей позиции</AppText>
+                      <AppText variant="caption" color={colors.muted}>
+                        Все {coverage?.available ?? 0} доступных спотов; покрытие{' '}
+                        {coverage?.available ?? 0}/{coverage?.legal ?? 0}
+                      </AppText>
+                    </View>
+                    {mix ? (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                    ) : null}
+                  </Pressable>
+                </>
+              )}
             </GlowCard>
 
             <SectionLabel text="Параметры тренировки" />
@@ -606,7 +695,7 @@ export default function TrainScreen() {
           label="Сохранить"
           variant="surface"
           onPress={openPresetModal}
-          disabled={!canLaunch}
+          disabled={!canLaunch || randomPositions}
           style={styles.saveButton}
         />
         <Button label="Начать" onPress={launch} disabled={!canLaunch} style={styles.startButton} />
@@ -807,6 +896,43 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     borderRadius: radius.button,
     padding: spacing.md,
+  },
+  randomSeatCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 72,
+    padding: spacing.md,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bg,
+  },
+  randomSeatCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
+  randomSeatIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  randomSeatIconActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  orDivider: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  orLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  randomModeSummary: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  randomModeBadge: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
   },
   scenarioRow: {
     flexDirection: 'row',

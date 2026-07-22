@@ -11,11 +11,12 @@ export const SUITS = ['s', 'h', 'd', 'c'] as const;
 export type Suit = (typeof SUITS)[number];
 export type ConcreteCard = `${Rank}${Suit}`;
 export type ConcreteCombo = readonly [ConcreteCard, ConcreteCard];
+export type Flop = readonly [ConcreteCard, ConcreteCard, ConcreteCard];
 export type RangeReadingAnswer = 'opener' | 'even' | 'defender';
 
 export const RANGE_EQUITY_TIE_BAND = 0.025;
 
-interface WeightedCombo {
+export interface WeightedCombo {
   cards: ConcreteCombo;
   weight: number;
 }
@@ -38,6 +39,22 @@ export interface RangeEquityResult {
   openerComboWeight: number;
   defenderComboWeight: number;
   answer: RangeReadingAnswer;
+}
+
+export interface HandVsRangeEquityInput {
+  heroCards: ConcreteCombo;
+  villainNode: RangeNode;
+  villainAction: Action;
+  flop: Flop;
+  iterations?: number;
+  seed?: number;
+}
+
+export interface HandVsRangeEquityResult {
+  heroEquity: number;
+  villainEquity: number;
+  tieRate: number;
+  iterations: number;
 }
 
 const RANK_VALUE: Record<Rank, number> = {
@@ -66,6 +83,17 @@ function cardSuit(card: ConcreteCard): Suit {
 
 export function fullDeck(): ConcreteCard[] {
   return RANKS.flatMap((rank) => SUITS.map((suit) => `${rank}${suit}` as ConcreteCard));
+}
+
+/** Deal three distinct physical cards from a complete deck. */
+export function randomFlop(rng: () => number = Math.random): Flop {
+  const deck = fullDeck();
+  for (let i = 0; i < 3; i += 1) {
+    const roll = Math.min(0.9999999999999999, Math.max(0, rng()));
+    const index = i + Math.floor(roll * (deck.length - i));
+    [deck[i], deck[index]] = [deck[index], deck[i]];
+  }
+  return [deck[0], deck[1], deck[2]];
 }
 
 /** Expand a canonical hand into its 6 pair, 4 suited, or 12 offsuit combos. */
@@ -198,7 +226,7 @@ export function weightedActionCombos(
   return { combos, totalWeight: combos.reduce((sum, combo) => sum + combo.weight, 0) };
 }
 
-function seededRandom(seed: number): () => number {
+export function seededRandom(seed: number): () => number {
   let state = seed >>> 0;
   return () => {
     state += 0x6d2b79f5;
@@ -220,6 +248,18 @@ function sampleWeighted(
     if (roll <= 0) return combo;
   }
   return combos[combos.length - 1];
+}
+
+/** Deal one physical combo from an action range, respecting its data frequency. */
+export function sampleActionCombo(
+  node: RangeNode,
+  action: Action,
+  blockedCards: readonly ConcreteCard[] = [],
+  rng: () => number = Math.random,
+): ConcreteCombo | null {
+  const weighted = weightedActionCombos(node, action, blockedCards);
+  if (weighted.totalWeight <= 0 || weighted.combos.length === 0) return null;
+  return sampleWeighted(weighted.combos, weighted.totalWeight, rng).cards;
 }
 
 function overlaps(a: ConcreteCombo, b: ConcreteCombo): boolean {
@@ -299,5 +339,52 @@ export function estimateRangeEquity(input: RangeEquityInput): RangeEquityResult 
     openerComboWeight: opener.totalWeight,
     defenderComboWeight: defender.totalWeight,
     answer,
+  };
+}
+
+/**
+ * Showdown equity of one concrete hero hand against a data-backed action range.
+ * This is a card calculation, not a recommendation to bet, check, or fold.
+ */
+export function estimateHandVsRangeEquity(input: HandVsRangeEquityInput): HandVsRangeEquityResult {
+  const iterations = input.iterations ?? 1800;
+  if (!Number.isInteger(iterations) || iterations <= 0)
+    throw new Error('iterations must be positive');
+  const knownCards = [...input.heroCards, ...input.flop];
+  if (new Set(knownCards).size !== knownCards.length)
+    throw new Error('Hero hand and flop must contain unique cards');
+
+  const villain = weightedActionCombos(input.villainNode, input.villainAction, knownCards);
+  if (villain.totalWeight <= 0 || villain.combos.length === 0) {
+    throw new Error('Selected villain action has no weighted combos');
+  }
+
+  const rng = seededRandom(input.seed ?? 1);
+  let heroPoints = 0;
+  let villainPoints = 0;
+  let ties = 0;
+  for (let i = 0; i < iterations; i += 1) {
+    const villainCombo = sampleWeighted(villain.combos, villain.totalWeight, rng).cards;
+    const blocked = new Set<ConcreteCard>([...knownCards, ...villainCombo]);
+    const remaining = fullDeck().filter((card) => !blocked.has(card));
+    const turn = remaining.splice(Math.floor(rng() * remaining.length), 1)[0];
+    const river = remaining[Math.floor(rng() * remaining.length)];
+    const board = [...input.flop, turn, river] as const;
+    const heroScore = evaluateSeven([...input.heroCards, ...board]);
+    const villainScore = evaluateSeven([...villainCombo, ...board]);
+    if (heroScore > villainScore) heroPoints += 1;
+    else if (villainScore > heroScore) villainPoints += 1;
+    else {
+      ties += 1;
+      heroPoints += 0.5;
+      villainPoints += 0.5;
+    }
+  }
+
+  return {
+    heroEquity: heroPoints / iterations,
+    villainEquity: villainPoints / iterations,
+    tieRate: ties / iterations,
+    iterations,
   };
 }

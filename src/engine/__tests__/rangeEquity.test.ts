@@ -1,14 +1,39 @@
 import { getCombinedNode } from '../../data/ranges';
 import {
   estimateRangeEquity,
+  estimateHandVsRangeEquity,
   evaluateFive,
   evaluateSeven,
   expandHandKey,
+  fullDeck,
+  randomFlop,
+  sampleActionCombo,
+  seededRandom,
   weightedActionCombos,
   type ConcreteCard,
 } from '../rangeEquity';
 
 describe('range equity engine', () => {
+  it('deals three unique valid cards for a random flop', () => {
+    const deck = new Set(fullDeck());
+    const rng = (() => {
+      let state = 123456789;
+      return () => {
+        state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+        return state / 4294967296;
+      };
+    })();
+    const boards = new Set<string>();
+    for (let i = 0; i < 100; i += 1) {
+      const flop = randomFlop(rng);
+      expect(flop).toHaveLength(3);
+      expect(new Set(flop).size).toBe(3);
+      expect(flop.every((card) => deck.has(card))).toBe(true);
+      boards.add([...flop].sort().join('-'));
+    }
+    expect(boards.size).toBeGreaterThan(10);
+  });
+
   it('expands canonical hands into physical combos', () => {
     expect(expandHandKey('AA')).toHaveLength(6);
     expect(expandHandKey('AKs')).toHaveLength(4);
@@ -44,6 +69,34 @@ describe('range equity engine', () => {
     const blocked = weightedActionCombos(node, 'raise', ['As', 'Kd', '2c']);
     expect(blocked.combos.length).toBeLessThan(all.combos.length);
     expect(blocked.combos.every((combo) => !combo.cards.includes('As'))).toBe(true);
+  });
+
+  it('deals a concrete hero hand from node frequencies without board collisions', () => {
+    const node = getCombinedNode('cash6max_100bb_BTN_RFI');
+    if (!node) throw new Error('test node missing');
+    const flop = ['As', 'Kd', '2c'] as const;
+    const combo = sampleActionCombo(node, 'raise', flop, seededRandom(12));
+    expect(combo).not.toBeNull();
+    expect(new Set([...(combo ?? []), ...flop]).size).toBe(5);
+  });
+
+  it('calculates deterministic hand equity against a data-backed range', () => {
+    const defenderNode = getCombinedNode('cash6max_100bb_BB_blind_defense_BTN');
+    if (!defenderNode) throw new Error('test node missing');
+    const input = {
+      heroCards: ['As', 'Ks'] as const,
+      villainNode: defenderNode,
+      villainAction: 'call' as const,
+      flop: ['Qh', '7d', '2c'] as const,
+      iterations: 100,
+      seed: 77,
+    };
+    const first = estimateHandVsRangeEquity(input);
+    const second = estimateHandVsRangeEquity(input);
+    expect(first).toEqual(second);
+    expect(first.heroEquity + first.villainEquity).toBeCloseTo(1, 10);
+    expect(first.heroEquity).toBeGreaterThanOrEqual(0);
+    expect(first.heroEquity).toBeLessThanOrEqual(1);
   });
 
   it('returns deterministic, normalized range equity from node data', () => {
