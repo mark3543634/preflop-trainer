@@ -43,6 +43,7 @@ export function FeedbackOverlay({
   onNext,
   autoOpenRange = false,
   nextLabel = 'Следующая рука',
+  onFinish,
 }: {
   node: RangeNode;
   result: DecisionResult;
@@ -50,6 +51,7 @@ export function FeedbackOverlay({
   onNext: () => void;
   autoOpenRange?: boolean;
   nextLabel?: string;
+  onFinish?: () => void;
 }) {
   const [rangeVisible, setRangeVisible] = useState(autoOpenRange);
   const { width, height } = useWindowDimensions();
@@ -137,6 +139,14 @@ export function FeedbackOverlay({
           />
           <Button label={nextLabel} onPress={onNext} style={{ flex: 1 }} />
         </View>
+        {onFinish ? (
+          <Button
+            label="Завершить тренировку"
+            variant="ghost"
+            onPress={onFinish}
+            style={styles.finishButton}
+          />
+        ) : null}
       </View>
       <RangeViewerModal
         visible={rangeVisible}
@@ -224,4 +234,5 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingTop: spacing.sm,
   },
+  finishButton: { marginTop: spacing.sm },
 });

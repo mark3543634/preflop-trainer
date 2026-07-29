@@ -204,6 +204,11 @@ export class Session {
     return this.nodeById[rangeRefKey(providerId, nodeId)];
   }
 
+  /** Extend an active endless session with another preplanned shuffle bag. */
+  appendPlan(plan: PlannedHand[]): void {
+    this.plan.push(...plan);
+  }
+
   /**
    * Submit the user's action for the current hand. Records the Grade and
    * advances. Per-call rng override lets the UI roll fresh each hand.
