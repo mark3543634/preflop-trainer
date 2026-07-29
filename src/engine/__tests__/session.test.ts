@@ -67,12 +67,22 @@ describe('sampleWeightedHand', () => {
       expect(sampleWeightedHand(rng, reachWeights)).toBe('AA');
     }
   });
+
+  it('can exclude already-dealt hands while preserving weights', () => {
+    const excluded = new Set(allHands().filter((hand) => hand !== 'AKs'));
+    expect(sampleWeightedHand(mulberry32(5), undefined, excluded)).toBe('AKs');
+  });
 });
 
 describe('planSession', () => {
   it('deals exactly N hands', () => {
     const plan = planSession([testNode], 25, mulberry32(7));
     expect(plan.length).toBe(25);
+  });
+
+  it('does not repeat canonical hands during a short session', () => {
+    const plan = planSession([testNode], 25, mulberry32(71));
+    expect(new Set(plan.map((item) => item.hand)).size).toBe(25);
   });
 
   it('uses only the supplied node ids', () => {
@@ -94,6 +104,9 @@ describe('planSession', () => {
     };
     const plan = planSession([advancedNode], 100, mulberry32(77));
     expect(plan.every((item) => item.hand === 'AKs' || item.hand === 'AA')).toBe(true);
+    for (let i = 1; i < plan.length; i += 1) {
+      expect(plan[i].hand).not.toBe(plan[i - 1].hand);
+    }
   });
 });
 
@@ -116,6 +129,11 @@ describe('planPositionSession', () => {
     for (let i = 1; i < plan.length; i += 1) {
       expect(heroByNode.get(plan[i].nodeId)).not.toBe(heroByNode.get(plan[i - 1].nodeId));
     }
+  });
+
+  it('does not repeat hand classes in a table-wide short session', () => {
+    const plan = planPositionSession(positionNodes, 25, mulberry32(117));
+    expect(new Set(plan.map((item) => item.hand)).size).toBe(25);
   });
 
   it('returns an empty plan when no trainable positions are supplied', () => {

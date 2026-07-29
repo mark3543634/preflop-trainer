@@ -17,19 +17,32 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
       - run: npm ci --legacy-peer-deps
       - run: npm run check
       - run: npx expo-doctor
       - run: npm run export:web
-      - name: Собрать подписанный APK через EAS
+      - name: Подготовить Android-проект и ключ подписи
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: npx eas-cli@latest build --platform android --profile preview --non-interactive --wait --json > eas-build.json
-      - name: Скачать APK и вычислить SHA-256
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          url=$(jq -r '.[0].artifacts.buildUrl' eas-build.json)
-          test -n "$url" && test "$url" != "null"
-          curl -fL "$url" -o preflop-trainer.apk
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          npx expo prebuild --platform android --no-install
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/debug.keystore
+      - name: Собрать подписанный release APK
+        env:
+          NODE_ENV: production
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleRelease
+          cd ..
+          cp android/app/build/outputs/apk/release/app-release.apk preflop-trainer.apk
+      - name: Вычислить SHA-256
+        run: |
           sha256sum preflop-trainer.apk > preflop-trainer.apk.sha256
       - name: Опубликовать GitHub Release
         env:

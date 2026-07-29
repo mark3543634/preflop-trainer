@@ -41,21 +41,54 @@ export function shouldEndExam(examMode: boolean, mistakes: number, cap: number):
 export function sampleWeightedHand(
   rng: Rng = defaultRng,
   reachWeights?: Partial<Record<HandKey, number>>,
+  excludedHands?: ReadonlySet<HandKey>,
 ): HandKey {
   const hands = allHands();
   let total = 0;
   const reachOf = (hand: HandKey): number =>
-    reachWeights === undefined ? 1 : Math.max(0, reachWeights[hand] ?? 0);
+    excludedHands?.has(hand)
+      ? 0
+      : reachWeights === undefined
+        ? 1
+        : Math.max(0, reachWeights[hand] ?? 0);
   for (const h of hands) total += comboCount(h) * reachOf(h);
   // Missing/broken parent data must not crash a drill. Validation tests catch
   // this for public nodes; the unconditional fallback keeps imported local data usable.
-  if (total <= 0) return sampleWeightedHand(rng);
+  if (total <= 0) {
+    if (excludedHands && excludedHands.size > 0) {
+      return sampleWeightedHand(rng, reachWeights);
+    }
+    if (reachWeights !== undefined) return sampleWeightedHand(rng);
+    return hands[hands.length - 1];
+  }
   let roll = rng() * total;
   for (const h of hands) {
     roll -= comboCount(h) * reachOf(h);
     if (roll < 0) return h;
   }
   return hands[hands.length - 1]; // floating-point fallback
+}
+
+/**
+ * Deal from a weighted shuffle bag. A canonical hand is removed after it is
+ * dealt, so short sessions do not show duplicates. When a node has exhausted
+ * every reachable hand, the bag is refilled while still avoiding an immediate
+ * repeat whenever at least two hands can reach that node.
+ */
+function dealSessionHand(
+  node: RangeNode,
+  usedHands: Set<HandKey>,
+  previousHand: HandKey | undefined,
+  rng: Rng,
+): HandKey {
+  let hand = sampleWeightedHand(rng, node.reachWeights, usedHands);
+  if (usedHands.has(hand)) {
+    usedHands.clear();
+    const avoidPrevious = previousHand ? new Set<HandKey>([previousHand]) : undefined;
+    hand = sampleWeightedHand(rng, node.reachWeights, avoidPrevious);
+  }
+  usedHands.add(hand);
+  return hand;
 }
 
 /**
@@ -70,13 +103,17 @@ export function planSession(
 ): PlannedHand[] {
   if (nodes.length === 0) return [];
   const planned: PlannedHand[] = [];
+  const usedHands = new Set<HandKey>();
+  let previousHand: HandKey | undefined;
   for (let i = 0; i < length; i++) {
     const node = nodes[Math.floor(rng() * nodes.length) % nodes.length];
+    const hand = dealSessionHand(node, usedHands, previousHand, rng);
     planned.push({
       providerId: node.providerId,
       nodeId: node.id,
-      hand: sampleWeightedHand(rng, node.reachWeights),
+      hand,
     });
+    previousHand = hand;
   }
   return planned;
 }
@@ -102,6 +139,8 @@ export function planPositionSession(
 
   const planned: PlannedHand[] = [];
   let previousPosition: Position | undefined;
+  let previousHand: HandKey | undefined;
+  const usedHands = new Set<HandKey>();
   for (let i = 0; i < length; i += 1) {
     const candidates =
       buckets.length > 1
@@ -109,12 +148,14 @@ export function planPositionSession(
         : buckets;
     const bucket = candidates[Math.floor(rng() * candidates.length) % candidates.length];
     const node = bucket.nodes[Math.floor(rng() * bucket.nodes.length) % bucket.nodes.length];
+    const hand = dealSessionHand(node, usedHands, previousHand, rng);
     planned.push({
       providerId: node.providerId,
       nodeId: node.id,
-      hand: sampleWeightedHand(rng, node.reachWeights),
+      hand,
     });
     previousPosition = bucket.position;
+    previousHand = hand;
   }
   return planned;
 }
