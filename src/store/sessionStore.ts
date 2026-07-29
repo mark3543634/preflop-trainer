@@ -27,6 +27,8 @@ export interface SessionMeta {
   examMistakeCap?: number;
   /** Table-wide sandbox mode: choose a different available hero seat per hand. */
   randomPosition?: boolean;
+  /** Continue dealing until the user explicitly finishes the drill. */
+  endless?: boolean;
 }
 
 interface SessionStoreState {
@@ -50,11 +52,41 @@ interface SessionStoreState {
   replay: () => boolean; // re-run last config with a fresh deal; false if none
   submit: (action: Action) => void;
   next: () => void;
+  finish: () => void;
   abort: () => void;
 }
 
+/** One complete canonical-hand bag; another bag is appended only when needed. */
+export const ENDLESS_BATCH_SIZE = 169;
+
 function rollDice(): number {
   return Math.random();
+}
+
+function nextPlan(nodes: RangeNode[], meta: SessionMeta, length: number): PlannedHand[] {
+  return meta.randomPosition ? planPositionSession(nodes, length) : planSession(nodes, length);
+}
+
+/** Keep both hand and random seat from repeating at an endless-batch boundary. */
+function normalizeEndlessBoundary(
+  plan: PlannedHand[],
+  session: Session,
+  nodes: RangeNode[],
+  randomPosition: boolean,
+): PlannedHand[] {
+  const previous = session.results[session.results.length - 1];
+  if (!previous || plan.length < 2) return plan;
+  const previousNode = session.nodeFor(previous.providerId, previous.nodeId);
+  const nodeByRef = new Map(nodes.map((node) => [rangeRefKey(node.providerId, node.id), node]));
+  const replacementIndex = plan.findIndex((item) => {
+    if (item.hand === previous.hand) return false;
+    if (!randomPosition || !previousNode) return true;
+    return nodeByRef.get(rangeRefKey(item.providerId, item.nodeId))?.hero !== previousNode.hero;
+  });
+  if (replacementIndex <= 0) return plan;
+  const normalized = [...plan];
+  [normalized[0], normalized[replacementIndex]] = [normalized[replacementIndex], normalized[0]];
+  return normalized;
 }
 
 export const useSession = create<SessionStoreState>((set, get) => ({
@@ -72,9 +104,7 @@ export const useSession = create<SessionStoreState>((set, get) => ({
   lastMeta: null,
 
   start: (nodes, length, meta) => {
-    const plan = meta.randomPosition
-      ? planPositionSession(nodes, length)
-      : planSession(nodes, length);
+    const plan = nextPlan(nodes, meta, meta.endless ? ENDLESS_BATCH_SIZE : length);
     get().startWithPlan(nodes, plan, meta);
   },
 
@@ -125,6 +155,18 @@ export const useSession = create<SessionStoreState>((set, get) => ({
     const { session, meta } = get();
     if (!session || !meta) return;
     if (session.isComplete()) {
+      if (meta.endless && get().finishReason !== 'mistake_cap') {
+        const nodes = get().lastNodes;
+        const batch = normalizeEndlessBoundary(
+          nextPlan(nodes, meta, ENDLESS_BATCH_SIZE),
+          session,
+          nodes,
+          meta.randomPosition === true,
+        );
+        session.appendPlan(batch);
+        set({ showFeedback: false, lastResult: null, currentRoll: rollDice() });
+        return;
+      }
       finalize(session, meta);
       set({
         showFeedback: false,
@@ -135,6 +177,19 @@ export const useSession = create<SessionStoreState>((set, get) => ({
       return;
     }
     set({ showFeedback: false, lastResult: null, currentRoll: rollDice() });
+  },
+
+  finish: () => {
+    const { session, meta } = get();
+    if (!session || !meta || session.results.length === 0) return;
+    session.terminate();
+    finalize(session, meta);
+    set({
+      showFeedback: false,
+      finished: true,
+      summary: session.summary(),
+      finishReason: 'complete',
+    });
   },
 
   abort: () => {

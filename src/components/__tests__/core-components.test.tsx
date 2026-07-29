@@ -75,6 +75,19 @@ describe('основные компоненты MVP', () => {
     }
   });
 
+  it('запускает бесконечную тренировку из песочницы', () => {
+    const view = render(<TrainScreen />);
+    fireEvent.press(view.getByLabelText('Позиция BTN'));
+    fireEvent.press(view.getByText('Все сфолдили до меня'));
+    fireEvent.press(view.getByRole('button', { name: '∞ Без лимита' }));
+    fireEvent.press(view.getByRole('button', { name: 'Начать' }));
+
+    const state = useSession.getState();
+    expect(state.meta?.endless).toBe(true);
+    expect(state.session?.length).toBe(169);
+    expect(new Set(state.session?.plan.map((item) => item.hand)).size).toBe(169);
+  });
+
   it('сохраняет именованный provider-aware пресет', () => {
     const view = render(<TrainScreen />);
     fireEvent.press(view.getByLabelText('Позиция BTN'));
@@ -257,6 +270,41 @@ describe('основные компоненты MVP', () => {
     expect(view.getByText('Диапазон спота')).toBeTruthy();
     fireEvent.press(view.getByRole('button', { name: 'Вернуться к разбору' }));
     expect(view.getByRole('button', { name: 'Следующая рука' })).toBeTruthy();
+  });
+
+  it('продлевает бесконечную сессию и позволяет завершить её вручную', () => {
+    act(() => {
+      useSession
+        .getState()
+        .startWithPlan([node], [{ providerId: node.providerId, nodeId: node.id, hand: 'AA' }], {
+          title: 'Без лимита',
+          origin: 'sandbox',
+          examMode: false,
+          endless: true,
+        });
+    });
+    const completed = jest.fn();
+    const view = render(<TrainingView onComplete={completed} />);
+
+    expect(view.getByText('1 / ∞')).toBeTruthy();
+    fireEvent.press(view.getByRole('button', { name: 'Рейз' }));
+    fireEvent.press(view.getByRole('button', { name: 'Вернуться к разбору' }));
+    expect(view.getByRole('button', { name: 'Завершить тренировку' })).toBeTruthy();
+
+    act(() => {
+      useSession.getState().next();
+    });
+    expect(useSession.getState().finished).toBe(false);
+    expect(useSession.getState().session?.length).toBe(170);
+    expect(useSession.getState().session?.current()).not.toBeNull();
+
+    fireEvent.press(view.getByRole('button', { name: 'Рейз' }));
+    fireEvent.press(view.getByRole('button', { name: 'Вернуться к разбору' }));
+    fireEvent.press(view.getByRole('button', { name: 'Завершить тренировку' }));
+
+    expect(useSession.getState().finished).toBe(true);
+    expect(useSession.getState().summary?.handsPlayed).toBe(2);
+    expect(completed).toHaveBeenCalledTimes(1);
   });
 
   it('оставляет подтверждение действия в режиме повторения', () => {

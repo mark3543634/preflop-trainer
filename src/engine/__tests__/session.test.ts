@@ -208,6 +208,20 @@ describe('Session runner', () => {
     expect(session.isComplete()).toBe(true);
     expect(session.summary().handsPlayed).toBe(1);
   });
+
+  it('can append a fresh plan after an endless batch is completed', () => {
+    const first = planSession([testNode], 1, mulberry32(13));
+    const second = planSession([testNode], 2, mulberry32(14));
+    const session = new Session([testNode], first);
+
+    session.submit('raise');
+    expect(session.isComplete()).toBe(true);
+
+    session.appendPlan(second);
+    expect(session.isComplete()).toBe(false);
+    expect(session.length).toBe(3);
+    expect(session.current()).toEqual(second[0]);
+  });
 });
 
 describe('exam mistake cap', () => {

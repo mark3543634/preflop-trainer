@@ -12,7 +12,7 @@ import {
   sandboxScenarioAvailability,
 } from '../../src/engine/sandbox';
 import { allCombinedNodes } from '../../src/data/ranges';
-import { useSession } from '../../src/store/sessionStore';
+import { ENDLESS_BATCH_SIZE, useSession } from '../../src/store/sessionStore';
 import { useSettings } from '../../src/store/settingsStore';
 import { usePresets, type Preset } from '../../src/store/presetsStore';
 import { AppText, Button } from '../../src/components/primitives';
@@ -22,7 +22,8 @@ import { colors, glow, radius, spacing } from '../../src/theme';
 
 const FORMAT: GameFormat = 'cash_6max';
 const STACK_OPTIONS = [100, 40, 20, 12] as const;
-const LENGTHS = [10, 15, 25] as const;
+/** Zero is a persisted sentinel for a user-terminated endless drill. */
+const LENGTHS = [10, 15, 25, 0] as const;
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -171,6 +172,7 @@ export default function TrainScreen() {
 
   const selectedNode = !mix && !randomPositions ? selectedNodes[0] : undefined;
   const canLaunch = selectedNodes.length > 0;
+  const endless = length === 0;
   const selectionTitle = randomPositions
     ? 'Случайная позиция · каждая рука'
     : hero
@@ -183,8 +185,8 @@ export default function TrainScreen() {
   const completedSteps = canLaunch ? 3 : hero ? 2 : 1;
   const footerHint = canLaunch
     ? randomPositions
-      ? `${length} решений · ${availablePositions.length} позиций · ${selectedNodes.length} спотов`
-      : `${length} решений · ${selectedNodes.length} ${selectedNodes.length === 1 ? 'спот' : 'спотов'}`
+      ? `${endless ? '∞ решений' : `${length} решений`} · ${availablePositions.length} позиций · ${selectedNodes.length} спотов`
+      : `${endless ? '∞ решений' : `${length} решений`} · ${selectedNodes.length} ${selectedNodes.length === 1 ? 'спот' : 'спотов'}`
     : !hero
       ? 'Выберите позицию за столом'
       : scenario && villainOptions.length > 0 && !villain
@@ -236,12 +238,13 @@ export default function TrainScreen() {
       Alert.alert('Спот не готов', 'Выберите комбинацию, для которой в наборе есть данные.');
       return;
     }
-    start(selectedNodes, length, {
+    start(selectedNodes, endless ? ENDLESS_BATCH_SIZE : length, {
       title: selectionTitle,
       origin: 'sandbox',
       examMode,
       examMistakeCap,
       randomPosition: randomPositions,
+      endless,
     });
     router.push('/training');
   }
@@ -292,11 +295,13 @@ export default function TrainScreen() {
       );
       return;
     }
-    start(nodes, preset.length, {
+    const presetEndless = preset.length === 0;
+    start(nodes, presetEndless ? ENDLESS_BATCH_SIZE : preset.length, {
       title: preset.name,
       origin: 'sandbox',
       examMode,
       examMistakeCap,
+      endless: presetEndless,
     });
     router.push('/training');
   }
@@ -567,15 +572,16 @@ export default function TrainScreen() {
               <View style={styles.optionHeader}>
                 <AppText weight="bold">Количество решений</AppText>
                 <AppText variant="caption" color={colors.muted}>
-                  примерно {Math.max(2, Math.round(length * 0.22))}–
-                  {Math.max(4, Math.round(length * 0.4))} мин
+                  {endless
+                    ? 'без ограничения по времени'
+                    : `примерно ${Math.max(2, Math.round(length * 0.22))}–${Math.max(4, Math.round(length * 0.4))} мин`}
                 </AppText>
               </View>
               <View style={styles.rowWrap}>
                 {LENGTHS.map((value) => (
                   <MiniChip
                     key={value}
-                    label={`${value} рук`}
+                    label={value === 0 ? '∞ Без лимита' : `${value} рук`}
                     selected={length === value}
                     onPress={() => setLength(value)}
                   />
@@ -650,7 +656,8 @@ export default function TrainScreen() {
                           {preset.name}
                         </AppText>
                         <AppText variant="caption" color={colors.muted}>
-                          {preset.stackBB} BB · {preset.length} рук
+                          {preset.stackBB} BB ·{' '}
+                          {preset.length === 0 ? 'без лимита' : `${preset.length} рук`}
                         </AppText>
                       </View>
                       <Ionicons

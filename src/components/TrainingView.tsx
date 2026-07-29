@@ -32,9 +32,11 @@ export function TrainingView({
   const summary = useSession((s) => s.summary);
   const submit = useSession((s) => s.submit);
   const next = useSession((s) => s.next);
+  const finish = useSession((s) => s.finish);
   const rngMode = useSettings((s) => s.rngMode);
   const meta = useSession((s) => s.meta);
   const examMistakes = useSession((s) => s.examMistakes);
+  const finishReason = useSession((s) => s.finishReason);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   const [selected, setSelected] = useState<Action | null>(null);
@@ -75,6 +77,7 @@ export function TrainingView({
   }
 
   const total = session.length;
+  const endless = meta?.endless === true;
   const instantSandboxDecision = meta?.origin === 'sandbox';
   const rngAvailable = rngMode && displayNode.frequencyBasis === 'solver_frequency';
   const handNo = Math.min(session.position + (showFeedback ? 0 : 1), total);
@@ -137,7 +140,7 @@ export function TrainingView({
                 Рука
               </AppText>
               <AppText weight="bold">
-                {handNo} / {total}
+                {handNo} / {endless ? '∞' : total}
               </AppText>
             </View>
             <View style={styles.infoDivider} />
@@ -151,9 +154,18 @@ export function TrainingView({
             </View>
           </View>
         </View>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progress}%` }]} />
-        </View>
+        {endless ? (
+          <View style={styles.endlessStatus}>
+            <Ionicons name="infinite" size={15} color={colors.primary} />
+            <AppText variant="caption" color={colors.primary} weight="bold">
+              БЕЗ ЛИМИТА · ЗАВЕРШИТЕ ПОСЛЕ ЛЮБОГО РЕШЕНИЯ
+            </AppText>
+          </View>
+        ) : (
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${progress}%` }]} />
+          </View>
+        )}
 
         {/* felt + hole cards */}
         <View style={[styles.tableArea, wideLayout ? styles.tableAreaWide : null]}>
@@ -230,6 +242,7 @@ export function TrainingView({
           onNext={advance}
           autoOpenRange={instantSandboxDecision}
           nextLabel={feedbackNextLabel}
+          onFinish={endless && finishReason !== 'mistake_cap' ? finish : undefined}
         />
       ) : null}
     </Screen>
@@ -287,6 +300,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: radius.pill },
+  endlessStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+  },
   tableArea: {
     flex: 1,
     minHeight: 270,
